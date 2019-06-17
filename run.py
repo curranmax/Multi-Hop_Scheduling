@@ -1,4 +1,5 @@
 
+import algos
 import input_utils
 from input_utils import Traffic
 
@@ -21,7 +22,7 @@ if __name__ == '__main__':
 	for k in flows:
 		print(flows[k])
 
-	flows = traffic.microsoft(3)  # cluster 3 is very sparse
+	flows = traffic.microsoft(3)  # cluster 3 is sparse
 	for k in flows:
 		print(flows[k])
 
@@ -30,6 +31,6 @@ if __name__ == '__main__':
 	# flows = traffic.university( ... )
 
 	# Run test
-	#computeSchedule(num_nodes, flows, window_size, reconfig_delta)
+	#algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta)
 
 	# Output result

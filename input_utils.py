@@ -36,13 +36,21 @@ class Flow:
 		if not isinstance(self.size, int) or self.size <= 0:
 			raise Exception('self.size has invalid value: ' + str(self.size))
 
-		# TODO: some bug here
+		# TODO: some bug here ?
 		# if any(not is_node_id(v) for v in self.route) or \
 		# 		any(self.route.count(v) != 1 for v in self.route) or \
 		# 		self.route[0] != self.src or self.route[-1] != self.dst or \
 		# 		len(self.route) <= 1:
 		# 	raise Exception('self.route has invalid value: ' + str(self.route))
 			
+
+	# Returns the weight of this flow. Returns a float.
+	def weight(self):
+		return 1.0 / float(len(self.route) - 1)
+
+	# Returns the inverse weight of this flow. Guarenteed to return an int.
+	def invweight(self):
+		return len(self.route) - 1
 
 	def __str__(self):
 		return '(Flow ' + str(self.id) + ', src:' + str(self.src) + ' --> dst:' + str(self.dst) + ', # of Packets: ' + str(self.size) + ', route: [' + ', '.join(map(str, self.route)) + '])'
