@@ -1,5 +1,6 @@
 
 import input_utils
+from input_utils import Traffic
 
 if __name__ == '__main__':
 	# Get command line args
@@ -9,12 +10,26 @@ if __name__ == '__main__':
 	reconfig_delta = 10
 
 	# Get input
-	flows = input_utils.generateTestFlows(num_nodes, max_route_length)
-
+	# flows = input_utils.generateTestFlows(num_nodes, max_route_length)
+	traffic = Traffic(num_nodes=num_nodes, max_hop=max_route_length, random_seed=0)
+	
+	flows = traffic.microsoft(1)  # cluster 1 is somewhat dense
 	for k in flows:
-		print flows[k]
+		print(flows[k])
+
+	flows = traffic.microsoft(2)  # cluster 2 is between 1 and 3
+	for k in flows:
+		print(flows[k])
+
+	flows = traffic.microsoft(3)  # cluster 3 is very sparse
+	for k in flows:
+		print(flows[k])
+
+	# flows = traffic.sigmetrics( ... )
+	# flows = traffic.microsort( ... )
+	# flows = traffic.university( ... )
 
 	# Run test
-	computeSchedule(num_nodes, flows, window_size, reconfig_delta)
+	#computeSchedule(num_nodes, flows, window_size, reconfig_delta)
 
 	# Output result

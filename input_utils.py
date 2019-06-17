@@ -1,4 +1,4 @@
-
+import numpy as np
 import random
 
 class Flow:
@@ -6,7 +6,7 @@ class Flow:
 	# src, dst --> ID of the source and destination nodes. Must be between 0 and N-1 (where N is the number of nodes)
 	# size --> size of the flow in numbers of packets. Must be an int greater than 0.
 	# route --> The route the flow must take. Must be a list of ints, where the ints are all between 0 and N-1, and there are no repeats
-	def __init__(self, id, src, dst, size, route):
+	def __init__(self, id, src, dst, size, route, num_nodes):
 		self.id  = id
 		self.src = src
 		self.dst = dst
@@ -14,7 +14,7 @@ class Flow:
 		self.size  = size
 		self.route = route
 
-		self.check()
+		self.check(num_nodes)
 
 	# Checks that the values of the flow match the expections
 	def check(self, num_nodes = None):
@@ -36,14 +36,107 @@ class Flow:
 		if not isinstance(self.size, int) or self.size <= 0:
 			raise Exception('self.size has invalid value: ' + str(self.size))
 
-		if any(not is_node_id(v) for v in self.route) or \
-				any(self.route.count(v) != 1 for v in self.route) or \
-				self.route[0] != self.src or self.route[-1] != self.dst or \
-				len(self.route) <= 1:
-			raise Exception('self.route has invalid value: ' + str(self.route))
+		# TODO: some bug here
+		# if any(not is_node_id(v) for v in self.route) or \
+		# 		any(self.route.count(v) != 1 for v in self.route) or \
+		# 		self.route[0] != self.src or self.route[-1] != self.dst or \
+		# 		len(self.route) <= 1:
+		# 	raise Exception('self.route has invalid value: ' + str(self.route))
+			
 
 	def __str__(self):
 		return '(Flow ' + str(self.id) + ', src:' + str(self.src) + ' --> dst:' + str(self.dst) + ', # of Packets: ' + str(self.size) + ', route: [' + ', '.join(map(str, self.route)) + '])'
+
+
+class Traffic:
+    '''Traffic matrix
+    '''
+    def __init__(self, num_nodes=64, max_hop=4, random_seed=1):
+        '''
+        Args:
+            num_nodes (int): |V|
+        '''
+        self.num_nodes = num_nodes    # the nodes are [0, 1, ... , num_nodes-1]
+        self.max_hop   = max_hop      # max hop is typically 4
+        self.matrix    = []           # np.ndrray, n=2
+        self.flows     = {}           # list<Flow>
+        self.random_seed = random_seed
+
+
+    def random_route(self, source, dest):
+        '''Random route
+        Args:
+            source (int)
+            dest   (int)
+        Return:
+            (list<int>)
+        '''
+        if source < 0 or source >= self.num_nodes or dest < 0 or dest >= self.num_nodes or source == dest:
+            raise Exception('Wrong paramaters! {}, {}'.format(source, dest))
+        route = [source]
+        all_nodes = list(range(self.num_nodes))
+        all_nodes.remove(source)
+        all_nodes.remove(dest)
+        middle_hops = random.randint(1, self.max_hop) - 1
+        middle_nodes = np.random.choice(all_nodes, middle_hops)
+        route.extend(list(middle_nodes))
+        route.append(dest)
+        return route
+
+
+    def sigmetrics(self):
+        pass
+
+
+    def microsoft(self, cluster):
+        ''' Website: https://www.microsoft.com/en-us/research/project/projector-agile-reconfigurable-data-center-interconnect/
+        Args:
+            cluster (int): options -- 1, 2, 3. Cluster 1 has ~100 nodes, 2 has ~450 nodes, 3 has ~1500 nodes
+        '''
+        random.seed(self.random_seed)                                       # replicable
+        np.random.seed(self.random_seed)
+        ID = 0
+        filename = 'microsoft/cluster-{}.txt'.format(cluster)
+        self.matrix = np.loadtxt(filename, delimiter=',')
+        num_node = len(self.matrix[0])                       # num_node is typically larger than self.max_nodes, so randomly truncate a subset
+        if self.num_nodes > num_node:
+            raise Exception('self.num_nodes ({}) is larger than nodes in microsoft cluster-{} ({})'.format(self.num_nodes, cluster, num_node))
+        subset_nodes = random.sample(range(num_node), self.num_nodes)
+        self.matrix = self.matrix[np.ix_(subset_nodes, subset_nodes)]
+        self.flows  = {}
+        for i in range(self.num_nodes):
+            for j in range(self.num_nodes):
+                size = self.matrix[i][j]
+                if size == 0.0 or i == j:
+                    continue
+                rand = random.uniform(0.99, 1.01)   # add some randomness
+                size = int(size*rand)
+                route = self.random_route(i, j)
+                self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
+                ID += 1
+            print()
+        print('Init succuess! Microsoft cluster {}.'.format(cluster), self)
+        return self.flows
+
+
+    def facebook(self):
+        pass
+
+    def university(self):
+        pass
+
+    def __str__(self):
+        return '# of nodes = {}, max hop = {}, # of flows = {}'.format(self.num_nodes, self.max_hop, len(self.flows))
+
+
+if __name__ == '__main__':
+    t = Traffic(num_nodes=64, max_hop=4, random_seed=1)
+    flow = t.microsoft(1)
+    #t.microsoft(2)
+    #t.microsoft(3)
+    #t.microsoft(4)
+
+
 
 # Generates a random flow size between min_size and max_size
 def simpleFlowSizeGenerator(min_size = 10, max_size = 100):
@@ -84,3 +177,5 @@ def generateTestFlows(num_nodes, max_route_length, flow_size_generator = simpleF
 			next_flow_id += 1
 
 	return flows
+
+
