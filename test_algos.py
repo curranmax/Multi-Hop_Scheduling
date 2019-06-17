@@ -52,18 +52,20 @@ def testSortSubFlows(n_iters = 100, num_subflows = 1000, max_flow_id = 100000, m
 	
 	print 'testSortSubFlow passed'
 
-def testGetUniqueAlphas(n_iters = 100, num_subflow_groups = 1, max_subflows_per_invweight = 5, min_packets = 10, max_packets = 20, max_invweight = 5):
+def testGetUniqueAlphas(n_iters = 100, num_subflow_groups = 100, max_subflows_per_invweight = 10, min_packets = 10, max_packets = 1000, max_invweight = 5):
 	for n_iter in range(n_iters):
 		# Generate fake subflows and calculate the expected output
 		subflows = defaultdict(list)
 		expected_alphas = set()
 		for x in range(num_subflow_groups):
 			sum_packets = 0
+
 			# Generates packets starting with invweight 1 going up to max_invweight
 			for invw in xrange(1, max_invweight + 1):
 
 				# Randomly chooses the number of subflows to create
 				num_subflows = random.randint(0, max_subflows_per_invweight)
+
 				for _ in range(num_subflows):
 					# Randomly chooses the size of the subflow
 					this_size = random.randint(min_packets, max_packets)
@@ -89,8 +91,10 @@ def testGetUniqueAlphas(n_iters = 100, num_subflow_groups = 1, max_subflows_per_
 	print 'testGetUnqiueAlphas passed'
 
 if __name__ == '__main__':
-	random.seed(10)
 
 	testSortSubFlows()
+
+	
+	random.seed(10)
 	testGetUniqueAlphas()
 
