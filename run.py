@@ -1,4 +1,5 @@
 
+import algos
 import input_utils
 
 if __name__ == '__main__':
@@ -11,10 +12,7 @@ if __name__ == '__main__':
 	# Get input
 	flows = input_utils.generateTestFlows(num_nodes, max_route_length)
 
-	for k in flows:
-		print flows[k]
-
 	# Run test
-	computeSchedule(num_nodes, flows, window_size, reconfig_delta)
+	algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta)
 
 	# Output result
