@@ -45,6 +45,9 @@ class SubFlow:
 	def flowID(self):
 		return self.flow.id
 
+	def getSize(self):
+		return self.size
+
 # Sorts subflows in place
 def sortSubFlows(subflows):
 	# TODO sort by subflow id as well incase there are two subflows of the same size from the same flow
@@ -61,20 +64,22 @@ def getUniqueAlphas(subflows_by_next_hop):
 	alphas = set()
 
 	this_alpha = 0
-	for _, subflows in subflows_by_next_hop:
+	for _, subflows in subflows_by_next_hop.iteritems():
 		# Ignores length zero lists
 		if len(subflows) == 0:
 			continue
 
 		# Loops over all subflows
-		prev_invweight = subflows[0].invweight
+		prev_invweight = subflows[0].invweight()
 		for subflow in subflows:
 			# Once we have passed all subflows of a certain invweight, add the number of packets from subflows with invweight less than or equal to the previous subflow's invweight as a possible alpha.
-			if prev_invweight != subflows.invweight():
+			if prev_invweight != subflow.invweight():
 				alphas.add(this_alpha)
 
+				prev_invweight = subflow.invweight()
+
 			# Keep track of total number of packets.
-			this_alpha += subflow.size
+			this_alpha += subflow.getSize()
 
 		# Once all subflows have been processed, adds the total packet size as a possible alpha.
 		alphas.add(this_alpha)
