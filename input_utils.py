@@ -42,6 +42,14 @@ class Flow:
 				len(self.route) <= 1:
 			raise Exception('self.route has invalid value: ' + str(self.route))
 
+	# Returns the weight of this flow. Returns a float.
+	def weight(self):
+		return 1.0 / float(len(self.route) - 1)
+
+	# Returns the inverse weight of this flow. Guarenteed to return an int.
+	def invweight(self):
+		return len(self.route) - 1
+
 	def __str__(self):
 		return '(Flow ' + str(self.id) + ', src:' + str(self.src) + ' --> dst:' + str(self.dst) + ', # of Packets: ' + str(self.size) + ', route: [' + ', '.join(map(str, self.route)) + '])'
 
