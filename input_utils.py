@@ -1,5 +1,6 @@
 import numpy as np
 import random
+from scipy.stats import norm
 
 class Flow:
 	# id --> ID of the flow. Must be an int greater than or equal to 0
@@ -34,7 +35,7 @@ class Flow:
 		if self.src == self.dst:
 			raise Exception('self.src and self.dst must be different: ' + str(self.src) + ', ' + str(self.dst))
 
-		if not isinstance(self.size, int) or self.size <= 0:
+		if not (isinstance(self.size, int) or isinstance(self.size, np.int64)) or self.size <= 0:
 			raise Exception('self.size has invalid value: ' + str(self.size))
 
 		if any(not is_node_id(v) for v in self.route) or \
@@ -59,15 +60,16 @@ class Flow:
 class Traffic:
     '''Traffic matrix
     '''
-    def __init__(self, num_nodes=64, max_hop=4, random_seed=1):
+    def __init__(self, num_nodes=64, max_hop=4, window_size=1000, random_seed=1, debug=False):
         '''
         Args:
             num_nodes (int): |V|
         '''
-        self.num_nodes = num_nodes    # the nodes are [0, 1, ... , num_nodes-1]
-        self.max_hop   = max_hop      # max hop is typically 4
-        self.matrix    = []           # np.ndrray, n=2
-        self.flows     = {}           # dic[(a,b)] = Flow
+        self.num_nodes   = num_nodes    # the nodes are [0, 1, ... , num_nodes-1]
+        self.max_hop     = max_hop      # max hop is typically 4
+        self.matrix      = []           # np.ndrray, n=2
+        self.flows       = {}           # {(int, int) -> Flow}
+        self.window_size = window_size  # TODO traffic to or from any node should be bounded by window_size
         self.random_seed = random_seed
 
 
@@ -94,14 +96,89 @@ class Traffic:
         return route
 
 
-    def sigmetrics(self):
-        pass
+    def check_permutation(self, permutation):
+        '''Assume that node i do not send traffic to node i itself
+        Args:
+            permutation (np.array)
+        Return:
+            (bool)
+        '''
+        for i, p in enumerate(permutation):
+            if i == p:
+                return False
+        return True
+
+
+    def random_permutation(self):
+        '''Return a random permutation matrix
+        '''
+        index = list(range(self.num_nodes))
+        random.shuffle(index)
+        while self.check_permutation(index) == False:
+            random.shuffle(index)
+        permutation_matrix = np.zeros((self.num_nodes, self.num_nodes), dtype=int)
+        for i in range(self.num_nodes):
+            permutation_matrix[i][index[i]] = 1
+        return permutation_matrix
+        
+
+    def sigmetrics(self, c_l=0.7, n_l=4, c_s=0.3, n_s=12):
+        '''
+        Args:
+            c_l: capacity of summation of large flows
+            n_l: number of large flows
+            c_s: capacity of summation of small flows
+            n_s: number of small flows
+        Return:
+            {(int, int) -> Flow}
+        '''
+        random.seed(self.random_seed)                                       # replicable
+        np.random.seed(self.random_seed)
+        self.matrix = np.zeros((self.num_nodes, self.num_nodes))
+        for _ in range(n_l):                  # large flows
+            permutation = self.random_permutation()
+            self.matrix += c_l/n_l * permutation
+        
+        for _ in range(n_s):                  # small flows
+            permutation = self.random_permutation()
+            self.matrix += c_s/n_s * permutation
+
+        for i in range(self.num_nodes):
+            for j in range(self.num_nodes):
+                if i == j:
+                    continue
+                if self.matrix[i][j] != 0:    # add noise to the non-zero entries
+                    self.matrix[i][j] += np.random.normal(0, 0.003)
+                    self.matrix[i][j] = 0 if self.matrix[i][j] < 0 else self.matrix[i][j]
+        
+        colum_sum = np.sum(self.matrix, 0)
+        row_sum   = np.sum(self.matrix, 1)
+        max1 = max(max(colum_sum), max(row_sum))
+        ratio = max1/1.
+        if ratio > 1.:
+            self.matrix /= ratio               # bounded to 1
+        self.matrix *= self.window_size        # scale to window size
+        self.matrix = np.array(self.matrix, dtype=int)
+        ID = 0
+        for i in range(self.num_nodes):
+            for j in range(self.num_nodes):
+                size = self.matrix[i][j]
+                if size == 0 or i == j:
+                    continue
+                route = self.random_route(i, j)
+                self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
+                ID += 1
+        print('\nInit succuess! Sigmetrics c-l={}, n-l={}, c-s={}, n-s={}'.format(c_l, n_l, c_s, n_s), self)
+        return self.flows
+
 
 
     def microsoft(self, cluster):
         ''' Website: https://www.microsoft.com/en-us/research/project/projector-agile-reconfigurable-data-center-interconnect/
         Args:
             cluster (int): options -- 1, 2, 3. Cluster 1 has ~100 nodes, 2 has ~450 nodes, 3 has ~1500 nodes
+        Return:
+            {(int, int) -> Flow}
         '''
         random.seed(self.random_seed)                                       # replicable
         np.random.seed(self.random_seed)
@@ -124,8 +201,7 @@ class Traffic:
                 route = self.random_route(i, j)
                 self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
                 ID += 1
-            print()
-        print('Init succuess! Microsoft cluster {}.'.format(cluster), self)
+        print('\nInit succuess! Microsoft cluster {}.'.format(cluster), self)
         return self.flows
 
 
@@ -136,16 +212,10 @@ class Traffic:
         pass
 
     def __str__(self):
-        return '# of nodes = {}, max hop = {}, # of flows = {}'.format(self.num_nodes, self.max_hop, len(self.flows))
-
-
-if __name__ == '__main__':
-    t = Traffic(num_nodes=64, max_hop=4, random_seed=1)
-    flow = t.microsoft(1)
-    #t.microsoft(2)
-    #t.microsoft(3)
-    #t.microsoft(4)
-
+        c_sum = np.sum(self.matrix, 0)
+        r_sum = np.sum(self.matrix, 1)
+        return '\n# of nodes = {}, max hop = {}, # of flows = {}, window_size = {}\ncolum-sum min|mean|max = {}|{}|{}, row-sum min|mean|max = {}|{}|{}'.format(\
+               self.num_nodes, self.max_hop, len(self.flows), self.window_size, c_sum.min(), c_sum.mean(), c_sum.max(), r_sum.min(), r_sum.mean(), r_sum.max())
 
 
 # Generates a random flow size between min_size and max_size
@@ -189,3 +259,10 @@ def generateTestFlows(num_nodes, max_route_length, flow_size_generator = simpleF
 	return flows
 
 
+if __name__ == '__main__':
+    t = Traffic(num_nodes=64, max_hop=4, random_seed=1)
+    #flow = t.microsoft(cluster=1)
+    flow = t.sigmetrics(c_l=0.7, n_l=4, c_s=0.3, n_s=12)
+    #t.microsoft(2)
+    #t.microsoft(3)
+    #t.microsoft(4)

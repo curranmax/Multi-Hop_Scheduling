@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
 	# Get input
 	# flows = input_utils.generateTestFlows(num_nodes, max_route_length)
-	traffic = Traffic(num_nodes=num_nodes, max_hop=max_route_length, random_seed=0)
+	traffic = Traffic(num_nodes=num_nodes, max_hop=max_route_length, window_size=window_size, random_seed=0)
 	
 	flows = traffic.microsoft(1)  # cluster 1 is somewhat dense
 	for k in flows:
@@ -22,12 +22,12 @@ if __name__ == '__main__':
 	for k in flows:
 		print(flows[k])
 
-	flows = traffic.microsoft(3)  # cluster 3 is sparse
+	flows = traffic.microsoft(3)  # cluster 3 is sparse (many zeros)
 	for k in flows:
 		print(flows[k])
 
-	# flows = traffic.sigmetrics( ... )
-	# flows = traffic.microsort( ... )
+	flows = traffic.sigmetrics()
+	# flows = traffic.facebook( ... )
 	# flows = traffic.university( ... )
 
 	# Run test
