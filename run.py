@@ -49,6 +49,8 @@ if __name__ == '__main__':
 	# flows = traffic.university( ... )
 
 	# Run test
-	algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta)
+	schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta)
+
+	print result_metric
 
 	# Output result

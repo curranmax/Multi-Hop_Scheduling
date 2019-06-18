@@ -8,18 +8,54 @@ class Schedule:
 		self.matchings = []
 		self.durations = []
 
-	def addMatching(self, matching, duration):
+		self.matching_weights = []
+
+	def addMatching(self, matching, duration, matching_weight = None):
 		self.matchings.append(matching)
 		self.durations.append(duration)
+
+		self.matching_weights.append(matching_weight)
 
 	def numMatchings(self):
 		return len(self.matchings)
 
-	def totalDuration(self, reconfig_delta):
-		if len(self.durations) <= 0:
+	def numReconfigs(self):
+		if len(self.matchings) <= 0:
 			return 0
 		else:
-			return sum(self.durations) + reconfig_delta * (len(self.durations) - 1)
+			return len(self.matchings) - 1
+
+	def totalDuration(self, reconfig_delta):
+		return sum(self.durations) + reconfig_delta * self.numReconfigs()
+
+	def getTotalMatchingWeight(self):
+		return sum(self.matching_weights)
+
+# Holds the different metrics for the result of one run
+class ResultMetric:
+	def __init__(self, total_objective_value, packets_delivered, packets_not_delivered, total_duration, time_slots_used, time_slots_not_used):
+		self.total_objective_value = total_objective_value
+		self.packets_delivered     = packets_delivered
+		self.packets_not_delivered = packets_not_delivered
+		self.total_duration        = total_duration
+		self.time_slots_used       = time_slots_used
+		self.time_slots_not_used   = time_slots_not_used
+
+	def getLinkUtilization(self):
+		return float(self.time_slots_used) / float(self.time_slots_used + self.time_slots_not_used)
+
+	def __str__(self):
+		normalize = lambda v: float(v) / float(self.total_duration)
+
+		return '{Total Objective Value: ' + str(self.total_objective_value) + ', ' + \
+				'Normalized Objective Value: ' + str(normalize(self.total_objective_value)) + ', ' + \
+				'Packets Delivered: ' + str(self.packets_delivered) + ', ' + \
+				'Normalized Packets Delivered: ' + str(normalize(self.packets_delivered)) + ', ' + \
+				'Packets Not Delivered: ' + str(self.packets_not_delivered) + ', ' + \
+				'Normalized Packets Not Delivered: ' + str(normalize(self.packets_not_delivered)) + ', ' + \
+				'Time Slots Used: ' + str(self.time_slots_used) + ', ' + \
+				'Time Slots Unused: ' + str(self.time_slots_not_used) + ', ' + \
+				'Link Utilization: ' + str(self.getLinkUtilization() * 100.0) + ' %}'
 
 # Holds a subflow of a input_utils.Flow
 class SubFlow:
@@ -180,10 +216,12 @@ def filterAlphas(alphas, total_duration_so_far, num_matchings, window_size, reco
 #   reconfig_delta --> the reconfiguraiton delta of the network
 # Output:
 #   best_objective_value --> The objective value of the best matching and alpha. (i.e. total weight of matching / (alpha + reconfig_delta))
+#   best_matching_weight --> The total weight of the matching that maximizes the objective.
 #   best_alpha --> The best alpha found
 #   best_matching --> The best matching found. It is a set of (src, dst) edges.
 def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta):
 	best_objective_value = None
+	best_matching_weight = None
 	best_alpha           = None
 	best_matching        = None
 
@@ -202,10 +240,11 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta):
 		this_objective_value = matching_weight / (alpha + reconfig_delta)
 		if best_objective_value is None or this_objective_value > best_objective_value:
 			best_objective_value = this_objective_value
+			best_matching_weight = matching_weight
 			best_alpha           = alpha
 			best_matching        = matching
 
-	return best_objective_value, best_alpha, best_matching
+	return best_objective_value, best_matching_weight, best_alpha, best_matching
 
 # Given the subflows (grouped by their next hop) and a matching duration, computes the bipartite graph with weighted edges.
 # Input:
@@ -309,6 +348,10 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta):
 	# Initialize the schedule, which will hold the result
 	schedule = Schedule()
 
+	# Track time slots where packets are and aren't sent
+	time_slots_used = 0
+	time_slots_not_used = 0
+
 	while schedule.totalDuration(reconfig_delta) < window_size:
 		# Gets the subflows_by_next_hop information from remaining_flows
 		# Keys are (curNode(), nextNode()) and values are a list of NextHopFlows
@@ -327,15 +370,17 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta):
 		alphas = filterAlphas(alphas, schedule.totalDuration(reconfig_delta), schedule.numMatchings(), window_size, reconfig_delta)
 
 		# Track the best alpha and matching
-		ov, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta)
-		print ov, alpha, matching
+		obective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta)
 
 		# Add best matching and its associated alpha to Schedule
-		schedule.addMatching(matching, alpha)
+		schedule.addMatching(matching, alpha, matching_weight = matching_weight)
 
 		# Update remaining
 		for edge in matching:
 			packets_sent, unused_alpha, finished_subflows, new_subflows = updateSubFlows(subflows_by_next_hop[edge], alpha)
+			
+			time_slots_used += packets_sent
+			time_slots_not_used += unused_alpha
 
 			# Removes any subflows that have finished from current_subflows and places adds them to completed_subflows
 			for fin_subflow in finished_subflows:
@@ -346,4 +391,15 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta):
 			for new_subflow in new_subflows:
 				current_subflows.append(new_subflow)
 
-	return schedule
+	# Compute result metrics
+	total_objective_value = schedule.getTotalMatchingWeight()
+
+	packets_delivered = sum(subflow.getSize() for subflow in completed_subflows)
+	packets_not_delivered = sum(subflow.getSize() for subflow in current_subflows)
+
+	# Add in reconfiguration delay to unused time slots
+	time_slots_not_used += reconfig_delta * num_nodes * schedule.numReconfigs()
+
+	result_metric = ResultMetric(total_objective_value, packets_delivered, packets_not_delivered, window_size, time_slots_used, time_slots_not_used)
+
+	return schedule, result_metric
