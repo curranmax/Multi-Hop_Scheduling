@@ -1,4 +1,6 @@
 
+from profiler import Profiler
+
 from collections import defaultdict
 import networkx as nx
 
@@ -114,6 +116,7 @@ class SubFlow:
 	# Addiitionaly updates self.rem_route, and (if the subflow is split) self.size.
 	# The first three values are updated to reflect that the subflow has been sent along the first edge in self.rem_route.
 	def send(self, alpha):
+		Profiler.start('SubFlow.send')
 		if alpha <= 0:
 			raise Exception('Trying to send a subflow with no time')
 
@@ -138,6 +141,7 @@ class SubFlow:
 		# Gets the number of packets sent
 		packets_sent = self.getSize()
 
+		Profiler.end('SubFlow.send')
 		return packets_sent, remaining_alpha, split_subflow, is_subflow_done
 
 # Sorts subflows in place
@@ -147,7 +151,9 @@ def sortSubFlows(subflows):
 	# TODO sort by subflow id as well incase there are two subflows of the same size from the same flow
 
 	# Sorts flows by shortest route to longest route. Uses flow.id as a tiebreaker in order to keep things deterministic.
+	Profiler.start('sortSubFlows')
 	subflows.sort(key = lambda x: (x.invweight(), x.flowID()))
+	Profiler.end('sortSubFlows')
 
 # Given the next hop traffic, find the set of alphas to consider
 # Input:
@@ -155,6 +161,8 @@ def sortSubFlows(subflows):
 # Output:
 #   Returns a set of alphas to be considered.
 def getUniqueAlphas(subflows_by_next_hop):
+	Profiler.start('getUniqueAlphas')
+
 	alphas = set()
 
 	for _, subflows in subflows_by_next_hop.iteritems():
@@ -179,6 +187,7 @@ def getUniqueAlphas(subflows_by_next_hop):
 		# Once all subflows have been processed, adds the total packet size as a possible alpha.
 		alphas.add(this_alpha)
 
+	Profiler.end('getUniqueAlphas')
 	return alphas
 
 # Truncates alphas that would go over the window_size
@@ -191,6 +200,8 @@ def getUniqueAlphas(subflows_by_next_hop):
 # Output:
 #   new_alphas --> Set of alphas that have been truncated (if the alpha would go over the window_size) or extended (if the reconfiguration after the alpha would go over the window size)
 def filterAlphas(alphas, total_duration_so_far, num_matchings, window_size, reconfig_delta):
+	Profiler.start('filterAlphas')
+
 	new_alphas = set()
 
 	for alpha in alphas:
@@ -206,6 +217,7 @@ def filterAlphas(alphas, total_duration_so_far, num_matchings, window_size, reco
 
 		new_alphas.add(alpha)
 
+	Profiler.end('filterAlphas')
 	return new_alphas
 
 # Finds the matching and alpha that maximizes sum of weights of the matching / (alpha + reconfig_delta)
@@ -220,6 +232,8 @@ def filterAlphas(alphas, total_duration_so_far, num_matchings, window_size, reco
 #   best_alpha --> The best alpha found
 #   best_matching --> The best matching found. It is a set of (src, dst) edges.
 def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta):
+	Profiler.start('findBestMatching')
+
 	best_objective_value = None
 	best_matching_weight = None
 	best_alpha           = None
@@ -231,7 +245,9 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta):
 		graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes)
 
 		# Find the maximum weight matching of the graph using a 3rd party library
+		Profiler.start('networkx.max_weight_matching')
 		matching = nx.algorithms.matching.max_weight_matching(graph)
+		Profiler.end('networkx.max_weight_matching')
 		matching_weight = sum(graph[a][b]['weight'] for a, b in matching)
 
 		matching = convertMatching(matching, num_nodes)
@@ -244,6 +260,7 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta):
 			best_alpha           = alpha
 			best_matching        = matching
 
+	Profiler.end('findBestMatching')
 	return best_objective_value, best_matching_weight, best_alpha, best_matching
 
 # Given the subflows (grouped by their next hop) and a matching duration, computes the bipartite graph with weighted edges.
@@ -253,6 +270,8 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta):
 # Ouput:
 #   Returns a nx.Graph object that is a complete bipartite graph with edge weights. Note the edge (x, y) in the returned graph corresponds the edge (x, y - num_node) in the rest of the code.
 def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes):
+	Profiler.start('createBipartiteGraph')
+
 	# Creates the (complete) graph. Note that edge (i, j) is represented as edge (i, j + num_nodes) in the graph.
 	graph = nx.complete_bipartite_graph(num_nodes, num_nodes)
 
@@ -266,6 +285,7 @@ def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes):
 
 		graph[i][j + num_nodes]['weight'] = this_weight
 
+	Profiler.end('createBipartiteGraph')
 	return graph
 
 # Finds the weighted number of packets that can be sent of subflows in alpha time.
@@ -275,6 +295,8 @@ def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes):
 # Return
 #   Returns maximum weighted sum of packets that can be sent within alpha time.
 def calculateTotalWeight(subflows, alpha):
+	Profiler.start('calculateTotalWeight')
+
 	unused_time = alpha
 	weighted_sum = 0.0
 	for subflow in subflows:
@@ -286,6 +308,7 @@ def calculateTotalWeight(subflows, alpha):
 			unused_time  -= unused_time
 			break
 
+	Profiler.end('calculateTotalWeight')
 	return weighted_sum
 
 # Converts the networkx matching to our matching
@@ -295,6 +318,7 @@ def calculateTotalWeight(subflows, alpha):
 # Output:
 #   Returns the matching in our format. For each edge (x, y) in the inputted matching, the output will contain (min(x, y), max(x, y) - num_nodes)
 def convertMatching(matching, num_nodes):
+	Profiler.start('convertMatching')
 	new_matching = set()
 	for edge in matching:
 		src = min(edge)
@@ -302,6 +326,7 @@ def convertMatching(matching, num_nodes):
 
 		new_matching.add((src, dst - num_nodes))
 
+	Profiler.end('convertMatching')
 	return new_matching
 
 # Sends as many subflows as possible within the given time period
@@ -314,6 +339,8 @@ def convertMatching(matching, num_nodes):
 #   finished_subflows --> List of subflows that have reached their destination.
 #   new_subflows --> List of new subflows that were split from one the inputted subflows.
 def updateSubFlows(subflows, alpha):
+	Profiler.start('updateSubFlows')
+
 	finished_subflows = []
 	new_subflows = []
 
@@ -335,12 +362,15 @@ def updateSubFlows(subflows, alpha):
 
 	remaing_alpha = alpha
 
+	Profiler.end('updateSubFlows')
 	return total_packets_sent, remaing_alpha, finished_subflows, new_subflows
 
 # Computes the multi-hop schedule for the given flows
 # Input:
 #   flows --> dict with keys (src_node_id, dst_node_id) and values of input_utils.Flow
 def computeSchedule(num_nodes, flows, window_size, reconfig_delta):
+	Profiler.start('computeSchedule')
+
 	# Initialzie subflows (same as the remaining traffic)
 	current_subflows = [SubFlow(flow = flows[k]) for k in flows]
 	completed_subflows = []
@@ -353,11 +383,15 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta):
 	time_slots_not_used = 0
 
 	while schedule.totalDuration(reconfig_delta) < window_size:
+		Profiler.start('computeSchedule-iteration')
+
 		# Gets the subflows_by_next_hop information from remaining_flows
 		# Keys are (curNode(), nextNode()) and values are a list of NextHopFlows
+		Profiler.start('computeSchedule-subflows_by_next_hop')
 		subflows_by_next_hop = defaultdict(list)
 		for subflow in current_subflows:
 			subflows_by_next_hop[(subflow.curNode(), subflow.nextNode())].append(subflow)
+		Profiler.end('computeSchedule-subflows_by_next_hop')
 
 		# Sorts each list in subflows_by_next_hop
 		for k in subflows_by_next_hop:
@@ -391,6 +425,8 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta):
 			for new_subflow in new_subflows:
 				current_subflows.append(new_subflow)
 
+		Profiler.end('computeSchedule-iteration')
+
 	# Compute result metrics
 	total_objective_value = schedule.getTotalMatchingWeight()
 
@@ -402,4 +438,5 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta):
 
 	result_metric = ResultMetric(total_objective_value, packets_delivered, packets_not_delivered, window_size, time_slots_used, time_slots_not_used)
 
+	Profiler.end('computeSchedule')
 	return schedule, result_metric
