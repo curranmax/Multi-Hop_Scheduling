@@ -12,13 +12,16 @@ if __name__ == '__main__':
 	max_route_length = 3
 	window_size = 1000
 	reconfig_delta = 10
-	input_source = 'sigmetrics'
+	input_source = 'test'
 
 	# Get input
-	# if input_source == 'test':
-	# 	flows = input_utils.generateTestFlows(num_nodes, max_route_length)
+	# Random Test data
+	if input_source == 'test':
+		flows = input_utils.generateTestFlows(num_nodes, max_route_length)
 
-	traffic = input_utils.Traffic(num_nodes=num_nodes, max_hop=max_route_length, window_size=window_size, random_seed=0)
+	# Data based on real measurements
+	if input_source in ['microsoft', 'sigmetrics']:
+		traffic = input_utils.Traffic(num_nodes=num_nodes, max_hop=max_route_length, window_size=window_size, random_seed=0)
 
 	if input_source == 'microsoft':
 		flows = traffic.microsoft(1)  # cluster 1 is somewhat dense
@@ -46,6 +49,6 @@ if __name__ == '__main__':
 	# flows = traffic.university( ... )
 
 	# Run test
-	#algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta)
+	algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta)
 
 	# Output result
