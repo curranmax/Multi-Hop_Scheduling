@@ -38,6 +38,9 @@ if __name__ == '__main__':
 	# Random Test data
 	if input_source == 'test':
 		flows = input_utils.generateTestFlows(num_nodes, max_route_length)
+		for key in flows:
+			print(flows[key])
+		print('number of flows', len(flows))
 
 	# Data based on real measurements
 	if input_source in ['microsoft', 'sigmetrics']:
@@ -49,15 +52,15 @@ if __name__ == '__main__':
 			print(flows[k])
 		print(traffic)
 
-		flows = traffic.microsoft(2)  # cluster 2 is between 1 and 3
-		for k in flows:
-			print(flows[k])
-		print(traffic)
+		# flows = traffic.microsoft(2)  # cluster 2 is between 1 and 3
+		# for k in flows:
+		# 	print(flows[k])
+		# print(traffic)
 
-		flows = traffic.microsoft(3)  # cluster 3 is sparse (many zeros)
-		for k in flows:
-			print(flows[k])
-		print(traffic)
+		# flows = traffic.microsoft(3)  # cluster 3 is sparse (many zeros)
+		# for k in flows:
+		# 	print(flows[k])
+		# print(traffic)
 
 	if input_source == 'sigmetrics':
 		flows = traffic.sigmetrics(c_l = 0.7, n_l = 4, c_s = 0.3, n_s = 12)
