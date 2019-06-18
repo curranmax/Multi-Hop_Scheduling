@@ -6,7 +6,7 @@ class Flow:
 	# src, dst --> ID of the source and destination nodes. Must be between 0 and N-1 (where N is the number of nodes)
 	# size --> size of the flow in numbers of packets. Must be an int greater than 0.
 	# route --> The route the flow must take. Must be a list of ints, where the ints are all between 0 and N-1, and there are no repeats
-	def __init__(self, id, src, dst, size, route, num_nodes):
+	def __init__(self, id, src, dst, size, route, num_nodes = None):
 		self.id  = id
 		self.src = src
 		self.dst = dst
