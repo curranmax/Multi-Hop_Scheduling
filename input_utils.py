@@ -18,6 +18,7 @@ class Flow:
 
 	# Checks that the values of the flow match the expections
 	def check(self, num_nodes = None):
+		# print(self)
 		if not isinstance(self.id, int) or self.id < 0:
 			raise Exception('self.id has invalid value: ' + str(self.id))
 
@@ -36,12 +37,11 @@ class Flow:
 		if not isinstance(self.size, int) or self.size <= 0:
 			raise Exception('self.size has invalid value: ' + str(self.size))
 
-		# TODO: some bug here ?
-		# if any(not is_node_id(v) for v in self.route) or \
-		# 		any(self.route.count(v) != 1 for v in self.route) or \
-		# 		self.route[0] != self.src or self.route[-1] != self.dst or \
-		# 		len(self.route) <= 1:
-		# 	raise Exception('self.route has invalid value: ' + str(self.route))
+		if any(not is_node_id(v) for v in self.route) or \
+				any(self.route.count(v) != 1 for v in self.route) or \
+				self.route[0] != self.src or self.route[-1] != self.dst or \
+				len(self.route) <= 1:
+			raise Exception('self.route has invalid value: ' + str(self.route))
 			
 
 	# Returns the weight of this flow. Returns a float.
@@ -67,7 +67,7 @@ class Traffic:
         self.num_nodes = num_nodes    # the nodes are [0, 1, ... , num_nodes-1]
         self.max_hop   = max_hop      # max hop is typically 4
         self.matrix    = []           # np.ndrray, n=2
-        self.flows     = {}           # list<Flow>
+        self.flows     = {}           # dic[(a,b)] = Flow
         self.random_seed = random_seed
 
 
@@ -79,6 +79,8 @@ class Traffic:
         Return:
             (list<int>)
         '''
+        if source == 3 and dest == 1:
+            print('caitao')
         if source < 0 or source >= self.num_nodes or dest < 0 or dest >= self.num_nodes or source == dest:
             raise Exception('Wrong paramaters! {}, {}'.format(source, dest))
         route = [source]
@@ -86,7 +88,7 @@ class Traffic:
         all_nodes.remove(source)
         all_nodes.remove(dest)
         middle_hops = random.randint(1, self.max_hop) - 1
-        middle_nodes = np.random.choice(all_nodes, middle_hops)
+        middle_nodes = random.sample(all_nodes, middle_hops)
         route.extend(list(middle_nodes))
         route.append(dest)
         return route
