@@ -63,11 +63,12 @@ def sortSubFlows(subflows):
 def getUniqueAlphas(subflows_by_next_hop):
 	alphas = set()
 
-	this_alpha = 0
 	for _, subflows in subflows_by_next_hop.iteritems():
 		# Ignores length zero lists
 		if len(subflows) == 0:
 			continue
+		
+		this_alpha = 0
 
 		# Loops over all subflows
 		prev_invweight = subflows[0].invweight()
