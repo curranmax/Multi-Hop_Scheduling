@@ -7,7 +7,7 @@ class Flow:
 	# src, dst --> ID of the source and destination nodes. Must be between 0 and N-1 (where N is the number of nodes)
 	# size --> size of the flow in numbers of packets. Must be an int greater than 0.
 	# route --> The route the flow must take. Must be a list of ints, where the ints are all between 0 and N-1, and there are no repeats
-	def __init__(self, id, src, dst, size, route, num_nodes):
+	def __init__(self, id, src, dst, size, route, num_nodes = None):
 		self.id  = id
 		self.src = src
 		self.dst = dst
@@ -168,7 +168,7 @@ class Traffic:
                 route = self.random_route(i, j)
                 self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
                 ID += 1
-        print('\nInit succuess! Sigmetrics c-l={}, n-l={}, c-s={}, n-s={}'.format(c_l, n_l, c_s, n_s), self)
+        print('\nInit succuess! Sigmetrics c-l={}, n-l={}, c-s={}, n-s={}'.format(c_l, n_l, c_s, n_s))
         return self.flows
 
 
@@ -262,7 +262,10 @@ def generateTestFlows(num_nodes, max_route_length, flow_size_generator = simpleF
 if __name__ == '__main__':
     t = Traffic(num_nodes=64, max_hop=4, random_seed=1)
     #flow = t.microsoft(cluster=1)
-    flow = t.sigmetrics(c_l=0.7, n_l=4, c_s=0.3, n_s=12)
+    flows = t.sigmetrics(c_l=0.7, n_l=4, c_s=0.3, n_s=12)
+    for k in flows:
+        print(flows[k])
+    print(t)
     #t.microsoft(2)
     #t.microsoft(3)
     #t.microsoft(4)

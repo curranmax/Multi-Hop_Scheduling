@@ -90,11 +90,13 @@ def testGetUniqueAlphas(n_iters = 100, num_subflow_groups = 100, max_subflows_pe
 
 	print 'testGetUnqiueAlphas passed'
 
+# TODO create tests for the following functions
+#   findBestMatching
+#   createBipartiteGraph
+#   calculateTotalWeight
+#   convertMatching
+
 if __name__ == '__main__':
-
 	testSortSubFlows()
-
-	
-	random.seed(10)
 	testGetUniqueAlphas()
 
