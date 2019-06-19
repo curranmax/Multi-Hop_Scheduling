@@ -69,7 +69,7 @@ class Traffic:
         self.max_hop     = max_hop      # max hop is typically 4
         self.matrix      = []           # np.ndrray, n=2
         self.flows       = {}           # {(int, int) -> Flow}
-        self.window_size = window_size  # TODO traffic to or from any node should be bounded by window_size
+        self.window_size = window_size  # for a traffic matrix, sum of row and sum of column should be bounded by window size
         self.random_seed = random_seed
 
 
