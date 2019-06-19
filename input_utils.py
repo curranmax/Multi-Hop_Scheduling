@@ -126,7 +126,7 @@ class Traffic:
         colum_sum = np.sum(self.matrix, 0)
         row_sum   = np.sum(self.matrix, 1)
         max1 = max(max(colum_sum), max(row_sum))
-        ratio = max1/1
+        ratio = max1/1.
         if ratio > 1:
             self.matrix /= ratio               # bounded to 1
         self.matrix *= self.window_size        # scale to window size
@@ -177,7 +177,6 @@ class Traffic:
         return self.flows
 
 
-
     def microsoft(self, cluster):
         ''' Website: https://www.microsoft.com/en-us/research/project/projector-agile-reconfigurable-data-center-interconnect/
         Args:
@@ -187,7 +186,7 @@ class Traffic:
         '''
         random.seed(self.random_seed)                                       # replicable
         np.random.seed(self.random_seed)
-        ID = 0
+        self.flows  = {}
         filename = 'microsoft/cluster-{}.txt'.format(cluster)
         self.matrix = np.loadtxt(filename, delimiter=',')
         num_node = len(self.matrix[0])                       # num_node is typically larger than self.max_nodes, so randomly truncate a subset
@@ -195,7 +194,6 @@ class Traffic:
             raise Exception('self.num_nodes ({}) is larger than nodes in microsoft cluster-{} ({})'.format(self.num_nodes, cluster, num_node))
         subset_nodes = random.sample(range(num_node), self.num_nodes)
         self.matrix = self.matrix[np.ix_(subset_nodes, subset_nodes)]
-        self.flows  = {}
         for i in range(self.num_nodes):
             for j in range(self.num_nodes):
                 size = self.matrix[i][j]
@@ -209,6 +207,8 @@ class Traffic:
         
         self.bound_traffic()
 
+        ID = 0
+        self.flows  = {}
         for i in range(self.num_nodes):
             for j in range(self.num_nodes):
                 size = self.matrix[i][j]
@@ -221,11 +221,70 @@ class Traffic:
         return self.flows
 
 
-    def facebook(self):
-        pass
+    def facebook(self, cluster='A'):
+        '''
+        Args:
+            cluster (str): options -- 'A', 'C'. A is database cluster, C is hadoop cluster
+        Return:
+            {(int, int) -> Flow}
+        '''
+        random.seed(self.random_seed)             # reproducable
+        np.random.seed(self.random_seed)
+        filename = 'facebook/facebook_cluster_{}.demand_matrix'.format(cluster)
+        ID = 0       # give each rack an ID
+        map_id = {}  # maps a hash number to ID
+        with open(filename, 'r') as f:            # pass 1: count how many racks, give each rack an ID
+            for line in f:
+                line = line.replace('\n', '')
+                if line == 'Pod_Demand_Matrix':
+                    break
+                line = line.split(' ')
+                if len(line) != 3:                # must be three elements: src dest size
+                    continue
+                src = line[0]
+                if map_id.get(src) == None:
+                    map_id[src] = ID
+                    ID += 1
+            print 'number of racks', len(map_id)
 
-    def university(self):
-        pass
+        self.matrix = np.zeros((len(map_id), len(map_id)))
+
+        with open(filename, 'r') as f:            # pass 2: initialize the traffic matrix
+            for line in f:
+                line = line.replace('\n', '')
+                if line == 'Pod_Demand_Matrix':
+                    break
+                line = line.split(' ')
+                if len(line) != 3:                # must be three elements: src dest size
+                    continue
+                src, dest, size = line[0], line[1], line[2]
+                if src == dest:                   # assume a rack don't send traffic to itself
+                    continue
+                src_id  = map_id.get(src)
+                dest_id = map_id.get(dest)
+                self.matrix[src_id][dest_id] = size
+        
+        num_node = len(self.matrix[0])            # num_node (hundreds) is typically larger than self.max_nodes(no more than a hundred)
+        if self.num_nodes > num_node:
+            raise Exception('self.num_nodes ({}) is larger than nodes in facebook cluster-{} ({})'.format(self.num_nodes, cluster, num_node))
+        subset_nodes = random.sample(range(num_node), self.num_nodes)  # randomly select a subset of nodes
+        self.matrix = self.matrix[np.ix_(subset_nodes, subset_nodes)]
+
+        self.bound_traffic()
+
+        ID = 0
+        self.flows  = {}
+        for i in range(self.num_nodes):
+            for j in range(self.num_nodes):
+                size = self.matrix[i][j]
+                if size == 0 or i == j:
+                    continue
+                route = self.random_route(i, j)
+                self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
+                ID += 1
+        print('\nInit succuess! Facebook cluster {}.'.format(cluster))
+        return self.flows
+
 
     def __str__(self):
         c_sum = np.sum(self.matrix, 0)
@@ -280,13 +339,18 @@ def generateTestFlows(num_nodes, max_route_length, flow_size_generator = simpleF
 
 
 if __name__ == '__main__':
-    t = Traffic(num_nodes=64, window_size=10000, max_hop=4, random_seed=1)
-    flows = t.microsoft(cluster=1)
-    print(t)
-    flows = t.sigmetrics(c_l=0.7, n_l=4, c_s=0.3, n_s=12)
-    print(t)
+    t = Traffic(num_nodes=64, window_size=1000, max_hop=4, random_seed=1)
+    # flows = t.microsoft(cluster=1)
+    # print(t)
+    # flows = t.sigmetrics(c_l=0.7, n_l=4, c_s=0.3, n_s=12)
+    # print(t)
+    flows = t.facebook(cluster='A')
     # for k in flows:
     #     print(flows[k])
+    print(t)
+    flows = t.facebook(cluster='C')
+    # for k in flows:
+    #     print(flows[k])
+    print(t)
     #t.microsoft(2)
     #t.microsoft(3)
-    #t.microsoft(4)

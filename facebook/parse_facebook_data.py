@@ -3,6 +3,7 @@ import urllib2
 import urllib
 import subprocess
 from collections import defaultdict
+import time
 
 import re
 
@@ -14,10 +15,11 @@ def getListOfZipFiles(filename):
 	return zips
 
 def downloadZipFiles(zip_url, i):
-	filename = 'raw_data/tmp_facebook_data_' + str(i) + '.bz2'
+	filename = 'facebook/tmp_facebook_data_' + str(i) + '.bz2'
 	try:
 		urllib.urlretrieve(zip_url, filename)
 	except Exception, e:
+		print(e)
 		return None
 	return filename
 
@@ -231,5 +233,7 @@ if __name__ == '__main__':
 	# downloadAllData(['raw_data/facebook_cluster_C.txt'], 'facebook_cluster_C.raw_flow_size', output_type = 'flow_size')
 	# downloadAllData(['raw_data/facebook_cluster_C.txt'], 'facebook_cluster_C.demand_matrix', output_type = 'demand_matrix')
 	# downloadAllData(['raw_data/facebook_cluster_B.txt'], 'facebook_cluster_B.demand_matrix')
-
-	downloadAllData(['facebook_cluster_B.txt'], 'facebook_cluster_B.demand_matrix', output_type = 'demand_matrix')
+	start = time.time()
+	# downloadAllData(['facebook/facebook_cluster_C.txt'], 'facebook/facebook_cluster_C.demand_matrix', output_type = 'demand_matrix')
+	downloadAllData(['facebook/facebook_cluster_B.txt'], 'facebook/facebook_cluster_B.demand_matrix', output_type = 'demand_matrix')
+	print('time = {:.1f}'.format(time.time()-start))
