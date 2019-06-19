@@ -249,7 +249,7 @@ def simpleFlowSizeGenerator(min_size = 10, max_size = 100):
 #   flow_size_generator --> A zero arg function that returns a flow size
 # Output:
 #   flows --> a dictionary with keys of (src_node_id, dst_node_id) and value of Flow.
-def generateTestFlows(num_nodes, max_route_length, flow_size_generator = simpleFlowSizeGenerator):
+def generateTestFlows(num_nodes, max_route_length, flow_size_generator = simpleFlowSizeGenerator, flow_prob = 1.0):
 	flows = {}
 
 	next_flow_id = 0
@@ -257,6 +257,11 @@ def generateTestFlows(num_nodes, max_route_length, flow_size_generator = simpleF
 		for j in range(num_nodes):
 			# Skip cases where src_node == dst_node
 			if i == j:
+				continue
+
+			# Random decides whether to create flow from i to j, based on flow_prob
+			rv = random.random()
+			if rv > flow_prob:
 				continue
 
 			# Generate data for this flow
