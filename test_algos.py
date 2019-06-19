@@ -91,7 +91,7 @@ def testGetUniqueAlphas(n_iters = 100, num_subflow_groups = 100, max_subflows_pe
 
 	print 'testGetUnqiueAlphas passed'
 
-def testCreateBipartiteGraph(n_iters = 100, min_num_nodes = 50, max_num_nodes = 150, edge_prob = 0.5):
+def testCreateBipartiteGraph(n_iters = 100, min_num_nodes = 50, max_num_nodes = 150, flow_prob = 0.5):
 	for n_iter in range(n_iters):
 		# Create fake data
 		# Choose a random value for the number of nodes in the graph
@@ -105,7 +105,7 @@ def testCreateBipartiteGraph(n_iters = 100, min_num_nodes = 50, max_num_nodes = 
 			for j in range(num_nodes):
 				# Randomly choose if this edge should be added
 				rv = random.random()
-				if i == j or rv > edge_prob:
+				if i == j or rv > flow_prob:
 					fake_weights[(i, j)]  = 0
 				else:
 					# Add the fake subflow. The value of the subflow isn't directly used by the funciton being tested.
@@ -134,13 +134,18 @@ def testCreateBipartiteGraph(n_iters = 100, min_num_nodes = 50, max_num_nodes = 
 		graph = algos.createBipartiteGraph(fake_subflows, alpha, num_nodes, calc_weight_func = fake_calc_weight_func)
 
 		# Check the graph to make sure that the weights match what we defined.
-		for x, y, d in graph.edges(data = True):
-			i = x
-			j = y - num_nodes
-			this_weight = d['weight']
+		for i, j in fake_weights:
+			x = i
+			y = j + num_nodes
 
-			if fake_weights[(i, j)] != this_weight:
-				raise Exception('Unexpected weight for edge (' + str(i) + ', ' + str(j) + '): expected ' + str(fake_weights[(i, j)]) + '; got ' + str(this_weight))
+			if fake_weights[(i, j)] == 0 and graph.has_edge(x, y):
+				raise Exception('Unexpected edge: (' + str(i) + ', ' + str(j) + ')' )
+
+			if fake_weights[(i, j)] > 0 and not graph.has_edge(x, y):
+				raise Exception('Expected edge but none found: (' + str(i) + ', ' + str(j) + ')')
+
+			if fake_weights[(i, j)] > 0 and graph.has_edge(x, y) and fake_weights[(i, j)] != graph[x][y]['weight']:
+				raise Exception('Unexpected weight for edge (' + str(i) + ', ' + str(j) + '): expected ' + str(fake_weights[(i, j)]) + '; got ' + str(graph[x][y]['weight']))
 
 	print 'testCreateBipartiteGraph passed'
 

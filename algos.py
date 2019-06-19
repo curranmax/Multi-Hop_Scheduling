@@ -278,18 +278,17 @@ def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, calc_weight_fun
 	if calc_weight_func is None:
 		calc_weight_func = calculateTotalWeight
 
-	# Creates the (complete) graph. Note that edge (i, j) is represented as edge (i, j + num_nodes) in the graph.
-	graph = nx.complete_bipartite_graph(num_nodes, num_nodes)
+	# Creates the graph
+	graph = nx.Graph()
 
-	# Initializes all edges to weight 0.0
-	for _, _, d in graph.edges(data = True):
-		d['weight'] = 0.0
+	# Creates nodes for each input port. The input port of i is node i in the graph.
+	graph.add_nodes_from(xrange(        0,     num_nodes), bipartite = 0)
 
-	# Compute the weight of each edge in G'
-	for (i, j), subflows in subflows_by_next_hop.iteritems():
-		this_weight = calc_weight_func(subflows, alpha)
+	# Creates nodes for each output port. The output port of i is node i + num_nodes in the graph.
+	graph.add_nodes_from(xrange(num_nodes, 2 * num_nodes), bipartite = 1)
 
-		graph[i][j + num_nodes]['weight'] = this_weight
+	# Creates the weighted edges in bipartite graph
+	graph.add_weighted_edges_from([(i, j + num_nodes, calc_weight_func(subflows, alpha)) for (i, j), subflows in subflows_by_next_hop.iteritems()])
 
 	Profiler.end('createBipartiteGraph')
 	return graph
