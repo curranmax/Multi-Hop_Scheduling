@@ -19,7 +19,6 @@ class Flow:
 
 	# Checks that the values of the flow match the expections
 	def check(self, num_nodes = None):
-		# print(self)
 		if not isinstance(self.id, int) or self.id < 0:
 			raise Exception('self.id has invalid value: ' + str(self.id))
 
@@ -173,7 +172,7 @@ class Traffic:
                 route = self.random_route(i, j)
                 self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
                 ID += 1
-        print('\nInit succuess! Sigmetrics c-l={}, n-l={}, c-s={}, n-s={}'.format(c_l, n_l, c_s, n_s))
+        # print('\nInit succuess! Sigmetrics c-l={}, n-l={}, c-s={}, n-s={}'.format(c_l, n_l, c_s, n_s))
         return self.flows
 
 
@@ -217,7 +216,7 @@ class Traffic:
                 route = self.random_route(i, j)
                 self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
                 ID += 1
-        print('\nInit succuess! Microsoft cluster {}.'.format(cluster))
+        # print('\nInit succuess! Microsoft cluster {}.'.format(cluster))
         return self.flows
 
 
@@ -245,7 +244,7 @@ class Traffic:
                 if map_id.get(src) == None:
                     map_id[src] = ID
                     ID += 1
-            print 'number of racks', len(map_id)
+            # print 'number of racks', len(map_id)
 
         self.matrix = np.zeros((len(map_id), len(map_id)))
 
@@ -282,7 +281,7 @@ class Traffic:
                 route = self.random_route(i, j)
                 self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
                 ID += 1
-        print('\nInit succuess! Facebook cluster {}.'.format(cluster))
+        # print('\nInit succuess! Facebook cluster {}.'.format(cluster))
         return self.flows
 
 
