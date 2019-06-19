@@ -25,7 +25,6 @@ class FakeSubFlow:
 	def getSize(self):
 		return self.size
 
-# tests algos.sortSubFlows
 def testSortSubFlows(n_iters = 100, num_subflows = 1000, max_flow_id = 100000, max_invweight = 10):
 	# Perform the specified number of tests
 	for n_iter in range(n_iters):
@@ -90,6 +89,60 @@ def testGetUniqueAlphas(n_iters = 100, num_subflow_groups = 100, max_subflows_pe
 
 	print 'testGetUnqiueAlphas passed'
 
+def testCreateBipartiteGraph(n_iters = 100, min_num_nodes = 50, max_num_nodes = 150, edge_prob = 1.0):
+	for n_iter in range(n_iters):
+		# Create fake data
+		# Choose a random value for the number of nodes in the graph
+		num_nodes = random.randint(min_num_nodes, max_num_nodes)
+
+		# Build up the fake values for subflows
+		fake_subflows = dict()
+		fake_weights  = dict()
+		x = 1
+		for i in range(num_nodes):
+			for j in range(num_nodes):
+				# Randomly choose if this edge should be added
+				rv = random.random()
+				if i == j or rv > edge_prob:
+					fake_weights[(i, j)]  = 0
+				else:
+					# Add the fake subflow. The value of the subflow isn't directly used by the funciton being tested.
+					fake_subflows[(i, j)] = (i, j)
+
+					# Define the weight for this fake subflow
+					fake_weights[(i, j)]  = x
+					x += 1
+
+		# The value of alpha isn't directly used by the function being tested
+		alpha = None
+
+		# Fake function that returns the weight of the given subflows
+		def fake_calc_weight_func(subflows, alpha):
+			# Checks input
+			if alpha is not None:
+				raise Exception('Unexpected alpha value: ' + str(alpha))
+
+			if subflows not in fake_weights:
+				raise Exception('Unexpected subflows value: ' + str(subflows))
+
+			# Returns the fake weight that was defined above
+			return fake_weights[subflows]
+
+		# Runs the function
+		graph = algos.createBipartiteGraph(fake_subflows, alpha, num_nodes, calc_weight_func = fake_calc_weight_func)
+
+		# Check the graph to make sure that the weights match what we defined.
+		for x, y, d in graph.edges(data = True):
+			i = x
+			j = y - num_nodes
+			this_weight = d['weight']
+
+			if fake_weights[(i, j)] != this_weight:
+				raise Exception('Unexpected weight for edge (' + str(i) + ', ' + str(j) + '): expected ' + str(fake_weights[(i, j)]) + '; got ' + str(this_weight))
+
+	print 'testCreateBipartiteGraph passed'
+
+
 # TODO create tests for the following functions
 #   findBestMatching
 #   createBipartiteGraph
@@ -99,4 +152,5 @@ def testGetUniqueAlphas(n_iters = 100, num_subflow_groups = 100, max_subflows_pe
 if __name__ == '__main__':
 	testSortSubFlows()
 	testGetUniqueAlphas()
+	testCreateBipartiteGraph()
 

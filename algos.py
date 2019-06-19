@@ -267,10 +267,16 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta):
 # Input:
 #   subflows_by_next_hop --> All subflows grouped by their next hop. SubFlows in each group are sorted from shortest to longest with flow.id as a tiebreak. Must be a dict with keys of (curNode(), nextNode()) and value of list of SubFlow.
 #   alpha --> The matching duration given in # of packets.
+#   num_nodes --> Number of nodes in the network.
+#   calc_weight_func --> Function that returns the weighted number of packets that can be sent by a set of subflows in a given duration. Must be a function with two arguments (a list of SubFlows, duration).
 # Ouput:
 #   Returns a nx.Graph object that is a complete bipartite graph with edge weights. Note the edge (x, y) in the returned graph corresponds the edge (x, y - num_node) in the rest of the code.
-def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes):
+def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, calc_weight_func = None):
 	Profiler.start('createBipartiteGraph')
+
+	# If no calc_weight_func given, use default function
+	if calc_weight_func is None:
+		calc_weight_func = calculateTotalWeight
 
 	# Creates the (complete) graph. Note that edge (i, j) is represented as edge (i, j + num_nodes) in the graph.
 	graph = nx.complete_bipartite_graph(num_nodes, num_nodes)
@@ -281,7 +287,7 @@ def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes):
 
 	# Compute the weight of each edge in G'
 	for (i, j), subflows in subflows_by_next_hop.iteritems():
-		this_weight = calculateTotalWeight(subflows, alpha)
+		this_weight = calc_weight_func(subflows, alpha)
 
 		graph[i][j + num_nodes]['weight'] = this_weight
 
