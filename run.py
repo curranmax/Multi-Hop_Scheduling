@@ -39,9 +39,9 @@ if __name__ == '__main__':
 	# Get input
 	# Random Test data
 	if input_source == 'test':
-		flows = input_utils.generateTestFlows(num_nodes, max_route_length)
-		for key in flows:
-			print(flows[key])
+		flows = input_utils.generateTestFlows(num_nodes, max_route_length, flow_prob = 1.0)
+		# for key in flows:
+		# 	print(flows[key])
 		print('number of flows', len(flows))
 
 	# Data based on real measurements
@@ -50,9 +50,9 @@ if __name__ == '__main__':
 
 	if input_source == 'microsoft':
 		flows = traffic.microsoft(1)  # cluster 1 is somewhat dense
-		for k in flows:
-			print(flows[k])
-		print(traffic)
+		# for k in flows:
+		# 	print(flows[k])
+		# print(traffic)
 
 		# flows = traffic.microsoft(2)  # cluster 2 is between 1 and 3
 		# for k in flows:
@@ -66,15 +66,15 @@ if __name__ == '__main__':
 
 	if input_source == 'sigmetrics':
 		flows = traffic.sigmetrics(c_l = 0.7, n_l = 4, c_s = 0.3, n_s = 12)
-		for k in flows:
-			print(flows[k])
-		print(traffic)
+		# for k in flows:
+		# 	print(flows[k])
+		# print(traffic)
 	
 	if input_source == 'facebook':
 		flows = traffic.facebook(cluster='A')
-		for k in flows:
-			print(flows[k])
-		print(traffic)
+		# for k in flows:
+		# 	print(flows[k])
+		# print(traffic)
 
 	# Run test
 	try:
