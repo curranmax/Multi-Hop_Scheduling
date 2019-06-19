@@ -81,8 +81,6 @@ class Traffic:
         Return:
             (list<int>)
         '''
-        if source == 3 and dest == 1:
-            print('caitao')
         if source < 0 or source >= self.num_nodes or dest < 0 or dest >= self.num_nodes or source == dest:
             raise Exception('Wrong paramaters! {}, {}'.format(source, dest))
         route = [source]
@@ -120,7 +118,20 @@ class Traffic:
         for i in range(self.num_nodes):
             permutation_matrix[i][index[i]] = 1
         return permutation_matrix
-        
+
+
+    def bound_traffic(self):
+        '''Bound the traffic so that the sum of column and row is smaller than window size. Sigmetrics'16 Hybrid section 2.2
+        '''
+        colum_sum = np.sum(self.matrix, 0)
+        row_sum   = np.sum(self.matrix, 1)
+        max1 = max(max(colum_sum), max(row_sum))
+        ratio = max1/1
+        if ratio > 1:
+            self.matrix /= ratio               # bounded to 1
+        self.matrix *= self.window_size        # scale to window size
+        self.matrix = np.array(self.matrix, dtype=int)
+
 
     def sigmetrics(self, c_l=0.7, n_l=4, c_s=0.3, n_s=12):
         '''
@@ -151,14 +162,8 @@ class Traffic:
                     self.matrix[i][j] += np.random.normal(0, 0.003)
                     self.matrix[i][j] = 0 if self.matrix[i][j] < 0 else self.matrix[i][j]
         
-        colum_sum = np.sum(self.matrix, 0)
-        row_sum   = np.sum(self.matrix, 1)
-        max1 = max(max(colum_sum), max(row_sum))
-        ratio = max1/1.
-        if ratio > 1.:
-            self.matrix /= ratio               # bounded to 1
-        self.matrix *= self.window_size        # scale to window size
-        self.matrix = np.array(self.matrix, dtype=int)
+        self.bound_traffic()
+
         ID = 0
         for i in range(self.num_nodes):
             for j in range(self.num_nodes):
@@ -196,12 +201,23 @@ class Traffic:
                 size = self.matrix[i][j]
                 if size == 0.0 or i == j:
                     continue
+                if size > self.window_size:
+                    size = self.window_size
                 rand = random.uniform(0.99, 1.01)   # add some randomness
                 size = int(size*rand)
+                self.matrix[i][j] = size
+        
+        self.bound_traffic()
+
+        for i in range(self.num_nodes):
+            for j in range(self.num_nodes):
+                size = self.matrix[i][j]
+                if size == 0.0 or i == j:
+                    continue
                 route = self.random_route(i, j)
                 self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
                 ID += 1
-        print('\nInit succuess! Microsoft cluster {}.'.format(cluster), self)
+        print('\nInit succuess! Microsoft cluster {}.'.format(cluster))
         return self.flows
 
 
@@ -214,8 +230,12 @@ class Traffic:
     def __str__(self):
         c_sum = np.sum(self.matrix, 0)
         r_sum = np.sum(self.matrix, 1)
-        return '\n# of nodes = {}, max hop = {}, # of flows = {}, window_size = {}\ncolum-sum min|mean|max = {}|{}|{}, row-sum min|mean|max = {}|{}|{}'.format(\
-               self.num_nodes, self.max_hop, len(self.flows), self.window_size, c_sum.min(), c_sum.mean(), c_sum.max(), r_sum.min(), r_sum.mean(), r_sum.max())
+        c_sum = np.sort(c_sum)        # accending order
+        r_sum = np.sort(r_sum)
+        m     = int(self.num_nodes/2) # approximately medium
+        total = np.sum(self.matrix)
+        return '\n# of nodes = {}, max hop = {}, # of flows = {}, window_size = {}, total packets = {}\ncolum-sum min|medium|mean|max = {}|{}|{}|{}, row-sum min|medium|mean|max = {}|{}|{}|{}'.format(\
+               self.num_nodes, self.max_hop, len(self.flows), self.window_size, total, c_sum[0], c_sum[m], int(c_sum.mean()), c_sum[self.num_nodes-1], r_sum[0], r_sum[m], int(r_sum.mean()), r_sum[self.num_nodes-1])
 
 
 # Generates a random flow size between min_size and max_size
@@ -260,12 +280,13 @@ def generateTestFlows(num_nodes, max_route_length, flow_size_generator = simpleF
 
 
 if __name__ == '__main__':
-    t = Traffic(num_nodes=64, max_hop=4, random_seed=1)
-    #flow = t.microsoft(cluster=1)
-    flows = t.sigmetrics(c_l=0.7, n_l=4, c_s=0.3, n_s=12)
-    for k in flows:
-        print(flows[k])
+    t = Traffic(num_nodes=64, window_size=10000, max_hop=4, random_seed=1)
+    flows = t.microsoft(cluster=1)
     print(t)
+    flows = t.sigmetrics(c_l=0.7, n_l=4, c_s=0.3, n_s=12)
+    print(t)
+    # for k in flows:
+    #     print(flows[k])
     #t.microsoft(2)
     #t.microsoft(3)
     #t.microsoft(4)
