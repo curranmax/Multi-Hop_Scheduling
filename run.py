@@ -73,7 +73,6 @@ if __name__ == '__main__':
 
 	# Run test
 	try:
-		# pass
 		schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta)
 		
 		print result_metric
