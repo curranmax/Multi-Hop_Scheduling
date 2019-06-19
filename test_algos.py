@@ -131,7 +131,9 @@ def testCreateBipartiteGraph(n_iters = 100, min_num_nodes = 50, max_num_nodes = 
 			return fake_weights[subflows]
 
 		# Runs the function
-		graph = algos.createBipartiteGraph(fake_subflows, alpha, num_nodes, calc_weight_func = fake_calc_weight_func)
+		graph = algos.createBipartiteGraph(fake_subflows, alpha, num_nodes, calc_weight_func = fake_calc_weight_func, max_weight_matching_library = 'networkx')
+
+		# TODO implement test for max_weight_matching_library = 'scipy'
 
 		# Check the graph to make sure that the weights match what we defined.
 		for i, j in fake_weights:

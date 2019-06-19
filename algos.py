@@ -3,6 +3,11 @@ from profiler import Profiler
 
 from collections import defaultdict
 import networkx as nx
+import numpy as np
+import scipy.optimize as scipy_opt
+
+# MAX_WEIGHT_MATCHING_LIBRARY = 'networkx'
+MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
 
 # Holds a multi-hop schedule
 class Schedule:
@@ -231,7 +236,7 @@ def filterAlphas(alphas, total_duration_so_far, num_matchings, window_size, reco
 #   best_matching_weight --> The total weight of the matching that maximizes the objective.
 #   best_alpha --> The best alpha found
 #   best_matching --> The best matching found. It is a set of (src, dst) edges.
-def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta):
+def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
 	Profiler.start('findBestMatching')
 
 	best_objective_value = None
@@ -242,15 +247,25 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta):
 	# Tries all alpha values in alphas and finds the maximum weighted matching in each
 	for alpha in sorted(alphas):
 		# Creates the graph for the given alpha
-		graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes)
+		graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, max_weight_matching_library = max_weight_matching_library)
 
 		# Find the maximum weight matching of the graph using a 3rd party library
-		Profiler.start('networkx.max_weight_matching')
-		matching = nx.algorithms.matching.max_weight_matching(graph)
-		Profiler.end('networkx.max_weight_matching')
-		matching_weight = sum(graph[a][b]['weight'] for a, b in matching)
+		if max_weight_matching_library is 'networkx':
+			Profiler.start('networkx.max_weight_matching')
+			matching = nx.algorithms.matching.max_weight_matching(graph)
+			Profiler.end('networkx.max_weight_matching')
 
-		matching = convertMatching(matching, num_nodes)
+			matching_weight = sum(graph[a][b]['weight'] for a, b in matching)
+		elif max_weight_matching_library is 'scipy':
+			Profiler.start('scipy.optimize.linear_sum_assignment')
+			matching = scipy_opt.linear_sum_assignment(-graph)
+			Profiler.end('scipy.optimize.linear_sum_assignment')
+
+			matching_weight = graph[matching[0], matching[1]].sum()
+		else:
+			raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
+
+		matching = convertMatching(graph, matching, num_nodes, max_weight_matching_library = max_weight_matching_library)
 
 		# Track the graph that maximizes value(G) / (alpha + reconfig_delta)
 		this_objective_value = matching_weight / (alpha + reconfig_delta)
@@ -271,7 +286,7 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta):
 #   calc_weight_func --> Function that returns the weighted number of packets that can be sent by a set of subflows in a given duration. Must be a function with two arguments (a list of SubFlows, duration).
 # Ouput:
 #   Returns a nx.Graph object that is a complete bipartite graph with edge weights. Note the edge (x, y) in the returned graph corresponds the edge (x, y - num_node) in the rest of the code.
-def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, calc_weight_func = None):
+def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, calc_weight_func = None, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
 	Profiler.start('createBipartiteGraph')
 
 	# If no calc_weight_func given, use default function
@@ -279,16 +294,26 @@ def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, calc_weight_fun
 		calc_weight_func = calculateTotalWeight
 
 	# Creates the graph
-	graph = nx.Graph()
+	if max_weight_matching_library is 'networkx':
+		graph = nx.Graph()
 
-	# Creates nodes for each input port. The input port of i is node i in the graph.
-	graph.add_nodes_from(xrange(        0,     num_nodes), bipartite = 0)
+		# Creates nodes for each input port. The input port of i is node i in the graph.
+		graph.add_nodes_from(xrange(        0,     num_nodes), bipartite = 0)
 
-	# Creates nodes for each output port. The output port of i is node i + num_nodes in the graph.
-	graph.add_nodes_from(xrange(num_nodes, 2 * num_nodes), bipartite = 1)
+		# Creates nodes for each output port. The output port of i is node i + num_nodes in the graph.
+		graph.add_nodes_from(xrange(num_nodes, 2 * num_nodes), bipartite = 1)
 
-	# Creates the weighted edges in bipartite graph
-	graph.add_weighted_edges_from([(i, j + num_nodes, calc_weight_func(subflows, alpha)) for (i, j), subflows in subflows_by_next_hop.iteritems()])
+		# Creates the weighted edges in bipartite graph
+		graph.add_weighted_edges_from([(i, j + num_nodes, calc_weight_func(subflows, alpha)) for (i, j), subflows in subflows_by_next_hop.iteritems()])
+
+	elif max_weight_matching_library is 'scipy':
+		graph = np.zeros((num_nodes, num_nodes))
+
+		for (i, j), subflows in subflows_by_next_hop.iteritems():
+			graph[i][j] = calc_weight_func(subflows, alpha)
+
+	else:
+		raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
 
 	Profiler.end('createBipartiteGraph')
 	return graph
@@ -322,14 +347,23 @@ def calculateTotalWeight(subflows, alpha):
 #   num_nodes --> number of nodes in the network
 # Output:
 #   Returns the matching in our format. For each edge (x, y) in the inputted matching, the output will contain (min(x, y), max(x, y) - num_nodes)
-def convertMatching(matching, num_nodes):
+def convertMatching(graph, matching, num_nodes, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
 	Profiler.start('convertMatching')
-	new_matching = set()
-	for edge in matching:
-		src = min(edge)
-		dst = max(edge)
+	if max_weight_matching_library is 'networkx':
+		new_matching = set()
+		for edge in matching:
+			src = min(edge)
+			dst = max(edge)
 
-		new_matching.add((src, dst - num_nodes))
+			new_matching.add((src, dst - num_nodes))
+	elif max_weight_matching_library is 'scipy':
+		new_matching = set()
+
+		for i, j in zip(matching[0], matching[1]):
+			if graph[i, j] >= 10e-6:
+				new_matching.add((i, j))
+	else:
+		raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
 
 	Profiler.end('convertMatching')
 	return new_matching
