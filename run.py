@@ -63,7 +63,7 @@ if __name__ == '__main__':
 		# print(traffic)
 
 	if input_source == 'sigmetrics':
-		flows = traffic.sigmetrics(c_l = 0.7, n_l = 4500, c_s = 0.3, n_s = 4500)
+		flows = traffic.sigmetrics(c_l = 0.7, n_l = 4, c_s = 0.3, n_s = 12)
 		for k in flows:
 			print(flows[k])
 		print(traffic)
