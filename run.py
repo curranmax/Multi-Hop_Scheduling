@@ -6,7 +6,9 @@ from profiler import Profiler
 import argparse
 import random
 
-INPUT_SOURCES = ['test', 'microsoft', 'sigmetrics']
+INPUT_SOURCES = ['test', 'microsoft', 'sigmetrics', 'facebook']
+
+# python run.py -nn 100 -rl 4 -ws 100 -rd 1 -is sigmetrics -profile
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = 'Creates a multi-hop schedule for a dynamic network')
@@ -43,7 +45,7 @@ if __name__ == '__main__':
 		print('number of flows', len(flows))
 
 	# Data based on real measurements
-	if input_source in ['microsoft', 'sigmetrics']:
+	if input_source in ['microsoft', 'sigmetrics', 'facebook']:
 		traffic = input_utils.Traffic(num_nodes = num_nodes, max_hop = max_route_length, window_size = window_size, random_seed = 0)
 
 	if input_source == 'microsoft':
@@ -67,13 +69,15 @@ if __name__ == '__main__':
 		for k in flows:
 			print(flows[k])
 		print(traffic)
-
-	# flows = traffic.facebook( ... )
-	# flows = traffic.university( ... )
+	
+	if input_source == 'facebook':
+		flows = traffic.facebook(cluster='A')
+		for k in flows:
+			print(flows[k])
+		print(traffic)
 
 	# Run test
 	try:
-		# pass
 		schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta)
 		
 		print result_metric
