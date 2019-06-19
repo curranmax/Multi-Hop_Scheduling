@@ -1,5 +1,6 @@
 
 import algos
+import benchmark_utils
 import input_utils
 from profiler import Profiler
 
@@ -7,6 +8,7 @@ import argparse
 import random
 
 INPUT_SOURCES = ['test', 'microsoft', 'sigmetrics', 'facebook']
+METHODS = ['octopus', 'upper-bound', 'split']
 
 # python run.py -nn 100 -rl 4 -ws 100 -rd 1 -is sigmetrics -profile
 
@@ -19,6 +21,8 @@ if __name__ == '__main__':
 	parser.add_argument('-rd', '--reconfig_delta', metavar = 'RECONFIG_DELTA', type = int, nargs = 1, default = [1], help = 'Time it takes to reconfigure the network')
 	parser.add_argument('-is', '--input_source', metavar = 'INPUT_SOURCE', type = str, nargs = 1, default = ['test'], help = 'Source to generate the Flows. Must be one of (' + ', '.join(INPUT_SOURCES) + ')')
 
+	parser.add_argument('-m', '--methods', metavar = 'METHODS', type = str, nargs = '+', default = ['octopus'], help = 'Set of methods to run. Must be in the set of (' + ', '.join(METHODS) + ')')
+
 	parser.add_argument('-profile', '--profile_code', action = 'store_true', help = 'If given, then the code is profiled, and results are outputted at the end')
 
 	args = parser.parse_args()
@@ -29,6 +33,8 @@ if __name__ == '__main__':
 	window_size      = args.window_size[0]
 	reconfig_delta   = args.reconfig_delta[0]
 	input_source     = args.input_source[0]
+
+	methods = args.methods
 
 	if input_source not in INPUT_SOURCES:
 		raise Exception('Invalid input_source: ' + str(input_source))
@@ -78,9 +84,25 @@ if __name__ == '__main__':
 
 	# Run test
 	try:
-		schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta)
-		
-		print result_metric
+		results = {}
+		for method in methods:
+			if method not in METHODS:
+				print 'Invalid method:', method
+				continue
+
+			if method == 'octopus':
+				# Runs the main "vannilla" method
+				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta)
+				print method, result_metric
+
+			if method == 'upper-bound':
+				# Runs the upper-bound where all flows only have a single hop
+				single_hop_flows = benchmark_utils.reduceToOneHop(flows)
+
+				schedule, result_metric = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta)
+				print method, result_metric
+			
+			results[method] = (schedule, result_metric)
 	except KeyboardInterrupt:
 		pass
 
