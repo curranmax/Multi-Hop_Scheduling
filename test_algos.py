@@ -6,6 +6,8 @@ import algos
 from collections import defaultdict
 import random
 
+EPS = 10e-6
+
 # Fakes a algos.SubFlow
 class FakeSubFlow:
 	def __init__(self, flow_id, invweight, size):
@@ -14,7 +16,7 @@ class FakeSubFlow:
 		self.size = size
 
 	def weight(self):
-		return 1.0 / float(invweight_val)
+		return 1.0 / float(self.invweight_val)
 
 	def invweight(self):
 		return self.invweight_val
@@ -51,7 +53,7 @@ def testSortSubFlows(n_iters = 100, num_subflows = 1000, max_flow_id = 100000, m
 	
 	print 'testSortSubFlow passed'
 
-def testGetUniqueAlphas(n_iters = 100, num_subflow_groups = 100, max_subflows_per_invweight = 10, min_packets = 10, max_packets = 1000, max_invweight = 5):
+def testGetUniqueAlphas(n_iters = 100, num_subflow_groups = 100, max_subflows_per_invweight = 100, min_packets = 10, max_packets = 1000, max_invweight = 5):
 	for n_iter in range(n_iters):
 		# Generate fake subflows and calculate the expected output
 		subflows = defaultdict(list)
@@ -89,7 +91,7 @@ def testGetUniqueAlphas(n_iters = 100, num_subflow_groups = 100, max_subflows_pe
 
 	print 'testGetUnqiueAlphas passed'
 
-def testCreateBipartiteGraph(n_iters = 100, min_num_nodes = 50, max_num_nodes = 150, edge_prob = 1.0):
+def testCreateBipartiteGraph(n_iters = 100, min_num_nodes = 50, max_num_nodes = 150, edge_prob = 0.5):
 	for n_iter in range(n_iters):
 		# Create fake data
 		# Choose a random value for the number of nodes in the graph
@@ -142,15 +144,83 @@ def testCreateBipartiteGraph(n_iters = 100, min_num_nodes = 50, max_num_nodes = 
 
 	print 'testCreateBipartiteGraph passed'
 
+def testCalculateTotalWeight(n_iters = 100, n_alphas = 10, max_subflows_per_invweight = 100, min_packets = 10, max_packets = 1000, max_invweight = 5):
+	for n_iter in range(n_iters):
+		flow_id = 0
+
+		num_packets_by_inv_weight = {invw: 0 for invw in xrange(1, max_invweight + 1)}
+		total_packets = 0
+
+		# Generates packets starting with invweight 1 going up to max_invweight
+		subflows = []
+		for invw in xrange(1, max_invweight + 1):
+			# Randomly chooses the number of subflows to create
+			num_subflows = random.randint(0, max_subflows_per_invweight)
+
+			for _ in range(num_subflows):
+				this_size = random.randint(min_packets, max_packets)
+				num_packets_by_inv_weight[invw] += this_size
+				total_packets += this_size
+
+				this_subflow = FakeSubFlow(0, invw, this_size)
+				subflows.append(this_subflow)
+
+		cumulative_packets_by_inv_weight = {invw: sum(num_packets_by_inv_weight[i] for i in xrange(1, invw + 1)) for invw in xrange(1, max_invweight + 1)}
+
+		for invw_test in xrange(1, max_invweight + 2):
+			# Skips values with no packets
+			if invw_test <= max_invweight and num_packets_by_inv_weight[invw_test] == 0:
+				continue
+
+			# Figure out the range of alpha such that the cutoff should be at subflows with an inverse weight of invw_test.
+			if invw_test == 1:
+				min_alpha = 1
+			else:
+				min_alpha = cumulative_packets_by_inv_weight[invw_test - 1] + 1
+
+			if invw_test == max_invweight + 1:
+				max_alpha = cumulative_packets_by_inv_weight[max_invweight] + 1000
+			else:
+				max_alpha = cumulative_packets_by_inv_weight[invw_test]
+
+			# Check that the range of alphas is correct
+			if invw_test <= max_invweight and min_alpha + num_packets_by_inv_weight[invw_test] - 1 != max_alpha:
+					raise Exception('Invalid values for min and max alpha: min --> ' + str(min_alpha) + ', max --> ' + str(max_alpha))
+
+			# Generates a random alpha
+			alpha = random.randint(min_alpha, max_alpha)
+
+			# Calculate the expected total weight for the chosen alpha value
+			expected_total_weight = 0.0
+			unaccounted_alpha = alpha
+
+			# Adds in the weighted packet size for all subflows with an inverse weight strictly less than invw_test
+			for i in xrange(1, invw_test):
+				expected_total_weight += num_packets_by_inv_weight[i] * 1.0 / float(i)
+				unaccounted_alpha -= num_packets_by_inv_weight[i]
+
+			if unaccounted_alpha <= 0 or (invw_test <= max_invweight and unaccounted_alpha > num_packets_by_inv_weight[invw_test]):
+				raise Exception('Invalid calculation of unnacounted_alpha')
+
+			# Adds in the weighted packet size for subflows with an inverse weight of exactly invw_test that are not cutoff with this value of alpha
+			if invw_test <= max_invweight:
+				expected_total_weight += unaccounted_alpha * 1.0 / float(invw_test)
+
+			calculated_total_weight = algos.calculateTotalWeight(subflows, alpha)
+
+			if abs(expected_total_weight - calculated_total_weight) > EPS:
+				raise Exception('Mismatch in total weight: expected ' + str(expected_total_weight) + '; got ' + str(calculated_total_weight))
+
+	print 'testCalculateTotalWeight passed'
 
 # TODO create tests for the following functions
-#   findBestMatching
-#   createBipartiteGraph
-#   calculateTotalWeight
-#   convertMatching
+#   findBestMatching (this function doesn't do much ouside of calling subfunctions)
+#   convertMatching (pretty straightforward)
+#   updateSubFlows
+#   SubFlow.send
 
 if __name__ == '__main__':
 	testSortSubFlows()
 	testGetUniqueAlphas()
 	testCreateBipartiteGraph()
-
+	testCalculateTotalWeight()
