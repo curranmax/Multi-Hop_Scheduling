@@ -22,7 +22,7 @@ if __name__ == '__main__':
 	parser.add_argument('-nr', '--num_routes', metavar = 'NUM_ROUTES', type = int, nargs = 1, default = [1], help = 'Number of routes to generate')
 	parser.add_argument('-is', '--input_source', metavar = 'INPUT_SOURCE', type = str, nargs = 1, default = ['test'], help = 'Source to generate the Flows. Must be one of (' + ', '.join(INPUT_SOURCES) + ')')
 
-	parser.add_argument('-m', '--methods', metavar = 'METHODS', type = str, nargs = '+', default = ['octopus-r'], help = 'Set of methods to run. Must be in the set of (' + ', '.join(METHODS) + ')')
+	parser.add_argument('-m', '--methods', metavar = 'METHODS', type = str, nargs = '+', default = ['octopus-r'], help = 'Set of methods to run. Must be in the set of (' + ', '.join(METHODS) + ') or "all"')
 
 	parser.add_argument('-profile', '--profile_code', action = 'store_true', help = 'If given, then the code is profiled, and results are outputted at the end')
 
@@ -37,6 +37,9 @@ if __name__ == '__main__':
 	input_source     = args.input_source[0]
 
 	methods = args.methods
+
+	if 'all' in methods:
+		methods = METHODS
 
 	if input_source not in INPUT_SOURCES:
 		raise Exception('Invalid input_source: ' + str(input_source))
