@@ -39,18 +39,26 @@ class Flow:
 		if not (isinstance(self.size, int) or isinstance(self.size, np.int64)) or self.size <= 0:
 			raise Exception('self.size has invalid value: ' + str(self.size))
 
+		# Checks self.route
 		if any(not is_node_id(v) for v in self.route) or \
 				any(self.route.count(v) != 1 for v in self.route) or \
 				self.route[0] != self.src or self.route[-1] != self.dst or \
 				len(self.route) <= 1:
 			raise Exception('self.route has invalid value: ' + str(self.route))
 
+		# Checks all routes in self.all_routes are valid routes
 		for route in self.all_routes:
 			if any(not is_node_id(v) for v in route) or \
 					any(route.count(v) != 1 for v in route) or \
 					route[0] != self.src or route[-1] != self.dst or \
 					len(route) <= 1:
 				raise Exception('A route in self.all_routes has invalid value: ' + str(self.route))
+
+		# Checks that no two routes in self.all_routes share the same first hop
+		for i in range(len(self.all_routes)):
+			for j in range(len(self.all_routes)):
+				if i < j and self.all_routes[i][0] == self.all_routes[j][0] and self.all_routes[i][1] == self.all_routes[j][1]:
+					raise Exception('Two routes share the same first hop: route 1: ' + str(self.all_routes[i]) + ', and route 2: ' + str(self.all_routes[j]))
 
 	# Returns the weight of this flow. Returns a float.
 	def weight(self):
