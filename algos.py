@@ -38,6 +38,16 @@ class Schedule:
 	def getTotalMatchingWeight(self):
 		return sum(self.matching_weights)
 
+# Combines all schedules into one
+def combineSchedules(schedules):
+	total_schedule = Schedule()
+
+	for schedule in schedules:
+		for m, d, w in zip(schedule.matchings, schedule.durations, schedule.matching_weights):
+			total_schedule.addMatching(m, d, w)
+
+	return total_schedule
+
 # Holds the different metrics for the result of one run
 class ResultMetric:
 	def __init__(self, total_objective_value, packets_delivered, packets_not_delivered, total_duration, time_slots_used, time_slots_not_used):
@@ -407,7 +417,7 @@ def updateSubFlows(subflows, alpha):
 # Computes the multi-hop schedule for the given flows
 # Input:
 #   flows --> dict with keys (src_node_id, dst_node_id) and values of input_utils.Flow
-def computeSchedule(num_nodes, flows, window_size, reconfig_delta):
+def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_completed_flow_ids = False):
 	Profiler.start('computeSchedule')
 
 	# Initialzie subflows (same as the remaining traffic)
@@ -477,5 +487,12 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta):
 
 	result_metric = ResultMetric(total_objective_value, packets_delivered, packets_not_delivered, window_size, time_slots_used, time_slots_not_used)
 
+	rvs = [schedule, result_metric]
+
+	# If requested, returns the set of flow_ids that were completed
+	if return_completed_flow_ids:
+		finished_flow_ids = [subflow.flowID() for subflow in completed_subflows]
+		rvs.append(finished_flow_ids)
+
 	Profiler.end('computeSchedule')
-	return schedule, result_metric
+	return tuple(rvs)

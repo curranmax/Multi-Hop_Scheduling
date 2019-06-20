@@ -7,16 +7,17 @@ class Flow:
 	# src, dst --> ID of the source and destination nodes. Must be between 0 and N-1 (where N is the number of nodes)
 	# size --> size of the flow in numbers of packets. Must be an int greater than 0.
 	# route --> The route the flow must take. Must be a list of ints, where the ints are all between 0 and N-1, and there are no repeats
-	def __init__(self, id, src, dst, size, all_routes, num_nodes = None):
+	def __init__(self, id, src, dst, size, route, all_routes, num_nodes = None, do_check = True):
 		self.id  = id
 		self.src = src
 		self.dst = dst
 
 		self.size       = size
 		self.all_routes = all_routes
-		self.route      = self.all_routes[0]
+		self.route      = route
 
-		self.check(num_nodes)
+		if do_check:
+			self.check(num_nodes)
 
 	# Checks that the values of the flow match the expections
 	def check(self, num_nodes = None):
@@ -43,7 +44,13 @@ class Flow:
 				self.route[0] != self.src or self.route[-1] != self.dst or \
 				len(self.route) <= 1:
 			raise Exception('self.route has invalid value: ' + str(self.route))
-			
+
+		for route in self.all_routes:
+			if any(not is_node_id(v) for v in route) or \
+					any(route.count(v) != 1 for v in route) or \
+					route[0] != self.src or route[-1] != self.dst or \
+					len(route) <= 1:
+				raise Exception('A route in self.all_routes has invalid value: ' + str(self.route))
 
 	# Returns the weight of this flow. Returns a float.
 	def weight(self):
@@ -176,7 +183,7 @@ class Traffic:
 
                 all_routes = generateRandomRoutes(i, j, self.num_nodes, self.max_hop, self.num_routes)
 
-                self.flows[(i, j)] = Flow(ID, i, j, size, all_routes, self.num_nodes)
+                self.flows[(i, j)] = Flow(ID, i, j, size, all_routes[0], all_routes, self.num_nodes)
                 ID += 1
         # print('\nInit succuess! Sigmetrics c-l={}, n-l={}, c-s={}, n-s={}'.format(c_l, n_l, c_s, n_s))
         return self.flows
@@ -223,7 +230,7 @@ class Traffic:
 
                 all_routes = generateRandomRoutes(i, j, self.num_nodes, self.max_hop, self.num_routes)
 
-                self.flows[(i, j)] = Flow(ID, i, j, size, all_routes, self.num_nodes)
+                self.flows[(i, j)] = Flow(ID, i, j, size, all_routes[0], all_routes, self.num_nodes)
                 ID += 1
         # print('\nInit succuess! Microsoft cluster {}.'.format(cluster))
         return self.flows
@@ -291,7 +298,7 @@ class Traffic:
 
                 all_routes = generateRandomRoutes(i, j, self.num_nodes, self.max_hop, self.num_routes)
 
-                self.flows[(i, j)] = Flow(ID, i, j, size, all_routes, self.num_nodes)
+                self.flows[(i, j)] = Flow(ID, i, j, size, all_routes[0], all_routes, self.num_nodes)
                 ID += 1
         # print('\nInit succuess! Facebook cluster {}.'.format(cluster))
         return self.flows
@@ -319,7 +326,7 @@ def simpleFlowSizeGenerator(min_size = 10, max_size = 100):
 #   flow_size_generator --> A zero arg function that returns a flow size
 # Output:
 #   flows --> a dictionary with keys of (src_node_id, dst_node_id) and value of Flow.
-def generateTestFlows(num_nodes, max_route_length, flow_size_generator = simpleFlowSizeGenerator, flow_prob = 1.0):
+def generateTestFlows(num_nodes, max_route_length, num_routes, flow_size_generator = simpleFlowSizeGenerator, flow_prob = 1.0):
 	flows = {}
 
 	next_flow_id = 0
@@ -337,9 +344,9 @@ def generateTestFlows(num_nodes, max_route_length, flow_size_generator = simpleF
 			# Generate data for this flow
 			this_size = flow_size_generator()
 
-			all_routes = generateRandomRoutes(i, j, num_nodes, max_route_length, 1)
+			all_routes = generateRandomRoutes(i, j, num_nodes, max_route_length, num_routes)
 
-			flows[(i, j)] = Flow(next_flow_id, i, j, this_size, all_routes)
+			flows[(i, j)] = Flow(next_flow_id, i, j, this_size, all_routes[0], all_routes)
 
 			next_flow_id += 1
 
@@ -359,7 +366,7 @@ def generateRandomRoutes(src, dst, num_nodes, max_route_length, num_routes):
 
 	while len(routes) < num_routes:
 		this_route_length = random.randint(1, max_route_length)
-		this_route = [i, j]
+		this_route = [src, dst]
 		for x in range(this_route_length - 1):
 			# Note: this will be inefficient if max_route_length is close to num_nodes
 			next_node = random.randint(0, num_nodes - 1)
@@ -370,7 +377,7 @@ def generateRandomRoutes(src, dst, num_nodes, max_route_length, num_routes):
 
 		# Check that the route is unique and that it doesn't share the same first hop
 		valid = True
-		for other_route in routes
+		for other_route in routes:
 			# Check if same first hop
 			if route[0] == other_route[0] and route[1] == other_route[1]:
 				valid = False
@@ -384,7 +391,7 @@ def generateRandomRoutes(src, dst, num_nodes, max_route_length, num_routes):
 		if valid:
 			routes.append(this_route)
 
-	return this_route
+	return routes
 
 if __name__ == '__main__':
     t = Traffic(num_nodes=64, window_size=1000, max_hop=4, random_seed=1)
