@@ -7,13 +7,14 @@ class Flow:
 	# src, dst --> ID of the source and destination nodes. Must be between 0 and N-1 (where N is the number of nodes)
 	# size --> size of the flow in numbers of packets. Must be an int greater than 0.
 	# route --> The route the flow must take. Must be a list of ints, where the ints are all between 0 and N-1, and there are no repeats
-	def __init__(self, id, src, dst, size, route, num_nodes = None):
+	def __init__(self, id, src, dst, size, all_routes, num_nodes = None):
 		self.id  = id
 		self.src = src
 		self.dst = dst
 
-		self.size  = size
-		self.route = route
+		self.size       = size
+		self.all_routes = all_routes
+		self.route      = self.all_routes[0]
 
 		self.check(num_nodes)
 
@@ -59,7 +60,7 @@ class Flow:
 class Traffic:
     '''Traffic matrix
     '''
-    def __init__(self, num_nodes=64, max_hop=4, window_size=1000, random_seed=1, debug=False):
+    def __init__(self, num_nodes = 64, max_hop = 4, window_size = 1000, num_routes = 1, random_seed = 1, debug = False):
         '''
         Args:
             num_nodes (int): |V|
@@ -70,6 +71,8 @@ class Traffic:
         self.flows       = {}           # {(int, int) -> Flow}
         self.window_size = window_size  # for a traffic matrix, sum of row and sum of column should be bounded by window size
         self.random_seed = random_seed
+
+        self.num_routes = num_routes
 
 
     def random_route(self, source, dest):
@@ -169,8 +172,11 @@ class Traffic:
                 size = self.matrix[i][j]
                 if size == 0 or i == j:
                     continue
-                route = self.random_route(i, j)
-                self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
+                # route = self.random_route(i, j)
+
+                all_routes = generateRandomRoutes(i, j, self.num_nodes, self.max_hop, self.num_routes)
+
+                self.flows[(i, j)] = Flow(ID, i, j, size, all_routes, self.num_nodes)
                 ID += 1
         # print('\nInit succuess! Sigmetrics c-l={}, n-l={}, c-s={}, n-s={}'.format(c_l, n_l, c_s, n_s))
         return self.flows
@@ -213,8 +219,11 @@ class Traffic:
                 size = self.matrix[i][j]
                 if size == 0.0 or i == j:
                     continue
-                route = self.random_route(i, j)
-                self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
+                # route = self.random_route(i, j)
+
+                all_routes = generateRandomRoutes(i, j, self.num_nodes, self.max_hop, self.num_routes)
+
+                self.flows[(i, j)] = Flow(ID, i, j, size, all_routes, self.num_nodes)
                 ID += 1
         # print('\nInit succuess! Microsoft cluster {}.'.format(cluster))
         return self.flows
@@ -278,8 +287,11 @@ class Traffic:
                 size = self.matrix[i][j]
                 if size == 0 or i == j:
                     continue
-                route = self.random_route(i, j)
-                self.flows[(i, j)] = Flow(ID, i, j, size, route, self.num_nodes)
+                # route = self.random_route(i, j)
+
+                all_routes = generateRandomRoutes(i, j, self.num_nodes, self.max_hop, self.num_routes)
+
+                self.flows[(i, j)] = Flow(ID, i, j, size, all_routes, self.num_nodes)
                 ID += 1
         # print('\nInit succuess! Facebook cluster {}.'.format(cluster))
         return self.flows
@@ -325,22 +337,54 @@ def generateTestFlows(num_nodes, max_route_length, flow_size_generator = simpleF
 			# Generate data for this flow
 			this_size = flow_size_generator()
 
-			this_route_length = random.randint(1, max_route_length)
-			this_route = [i, j]
-			for x in range(this_route_length - 1):
-				# Note: this will be inefficient if max_route_length is close to num_nodes
-				next_node = random.randint(0, num_nodes - 1)
-				while next_node in this_route:
-					next_node = random.randint(0, num_nodes - 1)
+			all_routes = generateRandomRoutes(i, j, num_nodes, max_route_length, 1)
 
-				this_route.insert(x + 1, next_node)
-
-			flows[(i, j)] = Flow(next_flow_id, i, j, this_size, this_route)
+			flows[(i, j)] = Flow(next_flow_id, i, j, this_size, all_routes)
 
 			next_flow_id += 1
 
 	return flows
 
+# Creates a set of random routes between src and dst. Guarenteed that there are no duplicate routes, and that no routes share the same first hop.
+# Input:
+#   src --> source node (as an int)
+#   dst --> destination node (as an int)
+#   num_nodes --> Total number of nodes in the network
+#   max_route_length --> The maximum length of the route
+#   num_routes --> The number of routes to generate
+# Ouput:
+#   routes --> List of routes, guarenteed to have no duplicates, and that no routes share the same first hop
+def generateRandomRoutes(src, dst, num_nodes, max_route_length, num_routes):
+	routes = []
+
+	while len(routes) < num_routes:
+		this_route_length = random.randint(1, max_route_length)
+		this_route = [i, j]
+		for x in range(this_route_length - 1):
+			# Note: this will be inefficient if max_route_length is close to num_nodes
+			next_node = random.randint(0, num_nodes - 1)
+			while next_node in this_route:
+				next_node = random.randint(0, num_nodes - 1)
+
+			this_route.insert(x + 1, next_node)
+
+		# Check that the route is unique and that it doesn't share the same first hop
+		valid = True
+		for other_route in routes
+			# Check if same first hop
+			if route[0] == other_route[0] and route[1] == other_route[1]:
+				valid = False
+				break
+
+			# Check if the route are the same (not really necessary, because the same routes will share the same first hop)
+			if all(nr == no for nr, no in zip(route, other_route)):
+				valid = False
+				break
+
+		if valid:
+			routes.append(this_route)
+
+	return this_route
 
 if __name__ == '__main__':
     t = Traffic(num_nodes=64, window_size=1000, max_hop=4, random_seed=1)
