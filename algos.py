@@ -17,7 +17,7 @@ class Schedule:
 
 		self.matching_weights = []
 
-	def addMatching(self, matching, duration, matching_weight = None):
+	def addMatching(self, matching, duration, matching_weight):
 		self.matchings.append(matching)
 		self.durations.append(duration)
 
@@ -453,7 +453,7 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 		alphas = filterAlphas(alphas, schedule.totalDuration(reconfig_delta), schedule.numMatchings(), window_size, reconfig_delta)
 
 		# Track the best alpha and matching
-		obective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta)
+		objective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta)
 
 		# Add best matching and its associated alpha to Schedule
 		schedule.addMatching(matching, alpha, matching_weight = matching_weight)

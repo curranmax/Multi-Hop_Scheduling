@@ -8,7 +8,7 @@ import argparse
 import random
 
 INPUT_SOURCES = ['test', 'microsoft', 'sigmetrics', 'facebook']
-METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split']
+METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse']
 
 # python run.py -nn 100 -rl 4 -ws 100 -rd 1 -is sigmetrics -profile
 
@@ -187,6 +187,13 @@ if __name__ == '__main__':
 				# Renames the variables to fit the convention of the loop
 				schedule = total_schedule
 				result_metric = total_result_metric
+
+			if method == 'eclipse':
+				single_hop_flows = benchmark_utils.reduceToOneHop(flows)
+
+				schedule, _ = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta)
+				
+				result_metric = benchmark_utils.routeFlowsThroughSchedule(num_nodes, schedule, flows, window_size, reconfig_delta)
 
 			results[method] = (schedule, result_metric)
 	except KeyboardInterrupt:
