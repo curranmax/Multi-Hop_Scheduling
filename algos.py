@@ -416,8 +416,17 @@ def updateSubFlows(subflows, alpha):
 
 # Computes the multi-hop schedule for the given flows
 # Input:
+#   num_nodes --> Number of nodes in the network
 #   flows --> dict with keys (src_node_id, dst_node_id) and values of input_utils.Flow
-def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_completed_flow_ids = False):
+#   window_size --> The total duration to compute the schedule
+#   reconfig_delta --> The time it takes to reconfigure the network
+#   return_completed_flow_ids --> If given, returns the flow_ids of completed subflows
+#   precomputed_schedule --> If given, uses the given schedule instead of computed maximum weight matchings
+# Output:
+#   schedule --> The computed schedule, containing the matchings and durations
+#   result_metric --> Holds the various metrics to judge the algorithm
+#   (Optional) completed_flow_ids --> List of flow_ids of subflows that reach their destination
+def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_completed_flow_ids = False, precomputed_schedule = None):
 	Profiler.start('computeSchedule')
 
 	# Initialzie subflows (same as the remaining traffic)
@@ -430,6 +439,12 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 	# Track time slots where packets are and aren't sent
 	time_slots_used = 0
 	time_slots_not_used = 0
+
+	if precomputed_schedule is not None:
+		if precomputed_schedule.totalDuration(reconfig_delta) != window_size:
+			raise Exception('Precomputed schedule does not match the given window_size')
+
+		precomputed_schedule_ind = 0
 
 	while schedule.totalDuration(reconfig_delta) < window_size:
 		Profiler.start('computeSchedule-iteration')
@@ -446,14 +461,24 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 		for k in subflows_by_next_hop:
 			sortSubFlows(subflows_by_next_hop[k])
 
-		# Get set of unique alphas to consider
-		alphas = getUniqueAlphas(subflows_by_next_hop)
+		if precomputed_schedule is None:
+			# Get set of unique alphas to consider
+			alphas = getUniqueAlphas(subflows_by_next_hop)
 
-		# Truncate alphas that go over the duration
-		alphas = filterAlphas(alphas, schedule.totalDuration(reconfig_delta), schedule.numMatchings(), window_size, reconfig_delta)
+			# Truncate alphas that go over the duration
+			alphas = filterAlphas(alphas, schedule.totalDuration(reconfig_delta), schedule.numMatchings(), window_size, reconfig_delta)
 
-		# Track the best alpha and matching
-		objective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta)
+			# Track the best alpha and matching
+			objective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta)
+
+		else:
+			# Get next matching and alpha from precomputed_schedule
+			matching = precomputed_schedule.matchings[precomputed_schedule_ind]
+			alpha    = precomputed_schedule.durations[precomputed_schedule_ind]
+			precomputed_schedule_ind += 1
+
+			# Calculate this matchings weight
+			matching_weight = sum(calculateTotalWeight(subflows_by_next_hop[(i, j)], alpha) for i, j in matching)
 
 		# Add best matching and its associated alpha to Schedule
 		schedule.addMatching(matching, alpha, matching_weight = matching_weight)

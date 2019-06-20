@@ -193,7 +193,9 @@ if __name__ == '__main__':
 
 				schedule, _ = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta)
 				
-				result_metric = benchmark_utils.routeFlowsThroughSchedule(num_nodes, schedule, flows, window_size, reconfig_delta)
+				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, precomputed_schedule = schedule)
+
+				print result_metric
 
 			results[method] = (schedule, result_metric)
 	except KeyboardInterrupt:
