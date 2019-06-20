@@ -392,13 +392,19 @@ if __name__ == '__main__':
     # print(t)
     # flows = t.sigmetrics(c_l=0.7, n_l=4, c_s=0.3, n_s=12)
     # print(t)
+    # flows = t.facebook(cluster='A')
+    # for k in flows:
+    #     print(flows[k])
+    # print(t)
     flows = t.facebook(cluster='A')
-    # for k in flows:
-    #     print(flows[k])
     print(t)
+    print('\n****\n')
+    flows = t.facebook(cluster='B')
+    print(t)
+    print('\n****\n')
     flows = t.facebook(cluster='C')
+    print(t)
     # for k in flows:
     #     print(flows[k])
-    print(t)
     #t.microsoft(2)
     #t.microsoft(3)
