@@ -50,13 +50,18 @@ def combineSchedules(schedules):
 
 # Holds the different metrics for the result of one run
 class ResultMetric:
-	def __init__(self, total_objective_value, packets_delivered, packets_not_delivered, total_duration, time_slots_used, time_slots_not_used):
+	def __init__(self, total_objective_value, packets_delivered, packets_not_delivered, total_duration, time_slots_used, time_slots_not_used, packets_delivered_by_tag = None):
 		self.total_objective_value = total_objective_value
 		self.packets_delivered     = packets_delivered
 		self.packets_not_delivered = packets_not_delivered
 		self.total_duration        = total_duration
 		self.time_slots_used       = time_slots_used
 		self.time_slots_not_used   = time_slots_not_used
+
+		if packets_delivered_by_tag is not None and len(packets_delivered_by_tag) > 0:
+			self.packets_delivered_by_tag = packets_delivered_by_tag
+		else:
+			self.packets_delivered_by_tag = None
 
 	def getLinkUtilization(self):
 		return float(self.time_slots_used) / float(self.time_slots_used + self.time_slots_not_used)
@@ -70,6 +75,7 @@ class ResultMetric:
 				'Normalized Packets Delivered: ' + str(normalize(self.packets_delivered)) + ', ' + \
 				'Packets Not Delivered: ' + str(self.packets_not_delivered) + ', ' + \
 				'Normalized Packets Not Delivered: ' + str(normalize(self.packets_not_delivered)) + ', ' + \
+				('' if self.packets_delivered_by_tag is None else 'Packets delivered by tag: ' + str(self.packets_delivered_by_tag) + ', ') + \
 				'Time Slots Used: ' + str(self.time_slots_used) + ', ' + \
 				'Time Slots Unused: ' + str(self.time_slots_not_used) + ', ' + \
 				'Link Utilization: ' + str(self.getLinkUtilization() * 100.0) + ' %}'
@@ -79,7 +85,7 @@ class SubFlow:
 	next_subflow_id = 0
 
 	# Input must a input_utils.flow
-	def __init__(self, flow = None, subflow = None, override_route = None, override_subflow_id = None, override_weight = None):
+	def __init__(self, flow = None, subflow = None, override_route = None, override_subflow_id = None, override_weight = None, tag = None):
 		if flow is not None:
 			# Reference to the parent flow
 			self.flow = flow
@@ -98,11 +104,17 @@ class SubFlow:
 			else:
 				self.rem_route = list(override_route)
 
+			self.invweight = len(self.rem_route) - 1
+			self.weight    = 1.0 / float(self.invweight)
+
 			# This subflow's size.
 			self.size = self.flow.size
 
-			# If this is not none, this value overrides self.flow.weight() and self.flow.invweight()
-			self.override_weight = override_weight
+			if override_weight is not None:
+				self.weight    = override_weight
+				self.invweight = 1.0 / self.weight
+
+			self.tag = tag
 		elif subflow is not None:
 			self.flow = subflow.flow
 
@@ -121,8 +133,19 @@ class SubFlow:
 
 			self.size = subflow.size
 
-			# If this is not none, this value overrides self.flow.weight() and self.flow.invweight()
-			self.override_weight = override_weight
+			self.invweight = subflow.invweight
+			self.weight    = subflow.weight
+
+			if override_weight is not None:
+				self.weight    = override_weight
+				self.invweight = 1.0 / self.weight
+			
+			if tag is not None:
+				self.tag = tag
+			elif subflow.tag is not None:
+				self.tag = subflow.tag
+			else:
+				self.tag = None
 		else:
 			raise Exception('Must specify either a flow or subflow to create a subflow')
 
@@ -144,17 +167,11 @@ class SubFlow:
 
 		return self.rem_route[-1]
 
-	def weight(self):
-		if self.override_weight is None:
-			return self.flow.weight()
-		else:
-			return self.override_weight
+	def getWeight(self):
+		return self.weight
 
-	def invweight(self):
-		if self.override_weight is None:
-			return self.flow.invweight()
-		else:
-			return self.override_weight
+	def getInvweight(self):
+		return self.invweight
 
 	def flowID(self):
 		return self.flow.id
@@ -215,7 +232,7 @@ def sortSubFlows(subflows):
 
 	# Sorts flows by shortest route to longest route. Uses flow.id as a tiebreaker in order to keep things deterministic.
 	Profiler.start('sortSubFlows')
-	subflows.sort(key = lambda x: (x.invweight(), x.flowID()))
+	subflows.sort(key = lambda x: (x.getInvweight(), x.flowID()))
 	Profiler.end('sortSubFlows')
 
 # Given the next hop traffic, find the set of alphas to consider
@@ -236,13 +253,13 @@ def getUniqueAlphas(subflows_by_next_hop):
 		this_alpha = 0
 
 		# Loops over all subflows
-		prev_invweight = subflows[0].invweight()
+		prev_invweight = subflows[0].getInvweight()
 		for subflow in subflows:
 			# Once we have passed all subflows of a certain invweight, add the number of packets from subflows with invweight less than or equal to the previous subflow's invweight as a possible alpha.
-			if prev_invweight != subflow.invweight():
+			if prev_invweight != subflow.getInvweight():
 				alphas.add(this_alpha)
 
-				prev_invweight = subflow.invweight()
+				prev_invweight = subflow.getInvweight()
 
 			# Keep track of total number of packets.
 			this_alpha += subflow.getSize()
@@ -378,7 +395,7 @@ def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, calc_weight_fun
 
 # Finds the weighted number of packets that can be sent of subflows in alpha time.
 # Input:
-#   subflows --> list of SubFlows sorted by increasing invweight() / decreasing weight()
+#   subflows --> list of SubFlows sorted by increasing getInvweight / decreasing getWeight()
 #   alpha --> duration that data can be sent
 # Return
 #   Returns maximum weighted sum of packets that can be sent within alpha time.
@@ -389,10 +406,10 @@ def calculateTotalWeight(subflows, alpha):
 	weighted_sum = 0.0
 	for subflow in subflows:
 		if subflow.getSize() < unused_time:
-			weighted_sum += subflow.getSize() * subflow.weight()
+			weighted_sum += subflow.getSize() * subflow.getWeight()
 			unused_time  -= subflow.getSize()
 		else:
-			weighted_sum += unused_time * subflow.weight()
+			weighted_sum += unused_time * subflow.getWeight()
 			unused_time  -= unused_time
 			break
 
@@ -486,7 +503,7 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 
 	# Initialzie subflows (same as the remaining traffic)
 	if consider_all_routes:
-		starting_subflows = [SubFlow(flow = flow, override_route = route) for _, flow in flows.iteritems() for route in flow.all_routes]
+		starting_subflows = [SubFlow(flow = flow, override_route = route, tag = str(len(route) - 1) + '-hop') for _, flow in flows.iteritems() for route in flow.all_routes]
 
 		track_updated_subflows = True
 	else:
@@ -530,10 +547,10 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 					backtrack_route = [this_subflow.curNode(), this_subflow.destNode()]
 
 					# Finds the weight of the backtrack subflow. It is equal to the sum of the weights of the remaining hops in the subflow
-					backtrack_weight = this_subflow.remainingRouteLength() * this_subflow.weight()
+					backtrack_weight = this_subflow.remainingRouteLength() * this_subflow.getWeight()
 
 					# Creates the backtrack_subflow and adds it to the system.
-					backtrack_subflow = SubFlow(subflow = this_subflow, override_route = backtrack_route, override_subflow_id = this_subflow.subflowID(), override_weight = backtrack_weight)
+					backtrack_subflow = SubFlow(subflow = this_subflow, override_route = backtrack_route, override_subflow_id = this_subflow.subflowID(), override_weight = backtrack_weight, tag = '1-hop_backtrack')
 
 			Profiler.end('computeSchedule-backtrack')
 
@@ -581,7 +598,7 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 			time_slots_not_used += unused_alpha
 
 			# Removes subflows of other routes once one of the subflows was chosen.
-			if consider_all_routes:
+			if consider_all_routes or backtrack:
 				for updated_subflow in updated_subflows:
 					# Gets the other subflows with the same subflows
 					related_subflows = current_subflows_by_subflow_id[updated_subflow.subflowID()]
@@ -621,6 +638,15 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 
 	packets_delivered = sum(subflow.getSize() for subflow in completed_subflows)
 
+	packets_delivered_by_tag = defaultdict(lambda: 0)
+	for subflow in completed_subflows:
+		if subflow.tag is not None:
+			packets_delivered_by_tag[subflow.tag] += subflow.getSize()
+
+	# If subflows are tagged, then all subflows should be tagged, and then the sum of packets delivered to each tag should equal the total number of packets delivered
+	if len(packets_delivered_by_tag) > 0 and packets_delivered != sum(packets for _, packets in packets_delivered_by_tag.iteritems()):
+		raise Exception('Delivered tagged packets do not equal total number of packets delivered')
+
 	# All subflows with the same subflow ID represent one undelivered subflow. All of these subflows should have the same size, and there should be no empty lists.
 	for _, subflows in current_subflows_by_subflow_id.iteritems():
 		if len(subflows) == 0:
@@ -634,7 +660,7 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 	# Add in reconfiguration delay to unused time slots
 	time_slots_not_used += reconfig_delta * num_nodes * schedule.numReconfigs()
 
-	result_metric = ResultMetric(total_objective_value, packets_delivered, packets_not_delivered, window_size, time_slots_used, time_slots_not_used)
+	result_metric = ResultMetric(total_objective_value, packets_delivered, packets_not_delivered, window_size, time_slots_used, time_slots_not_used, packets_delivered_by_tag = packets_delivered_by_tag)
 
 	rvs = [schedule, result_metric]
 
