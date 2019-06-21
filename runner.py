@@ -179,7 +179,13 @@ def appendToFile(out_file, inpt, output_by_method):
 		vals.append(('method', method))
 		vals += output.strVals()
 
-	out_str = ' '.join(map(lambda x: str(x[0]) + '|' + str(x[1]), vals))
+	def formatVals(val):
+		if val == 'OUTPUT':
+			return val
+		else:
+			return str(val[0]) + '|' + str(val[1])
+
+	out_str = ' '.join(map(formatVals, vals))
 	f.write(out_str + '\n')
 
 	f.close()
@@ -205,6 +211,24 @@ def runAllTests(inputs, num_tests, out_file):
 				raise Exception('Input doesn\'t match')
 			
 			appendToFile(out_file, inpt, output_by_method)
+
+# Gets all test inputs and outputs saved to a file
+# Input:
+#   filename --> Name of the file holding the data
+# Output:
+#   tests --> List of 2-tuples (Input, {method_str: Output}). Each value is the input given to run.py and the output for each method
+def readDataFromFile(filename):
+	f = open(filename, 'r')
+
+	tests = []
+	for line in f:
+		vals = line.split()
+
+		inpt, output_by_method = getInputAndOutput(vals)
+
+		tests.append((inpt, output_by_method))
+
+	return tests
 
 # Experiment strings
 NUM_NODES      = 'num_nodes'
