@@ -66,6 +66,16 @@ class ResultMetric:
 	def getLinkUtilization(self):
 		return float(self.time_slots_used) / float(self.time_slots_used + self.time_slots_not_used)
 
+	def runnerOutput(self):
+		print 'total_objective_value|' + str(self.total_objective_value)
+		print 'packets_delivered|'     + str(self.packets_delivered)
+		print 'packets_not_delivered|' + str(self.packets_not_delivered)
+		print 'time_slots_used|'       + str(self.time_slots_used)
+		print 'time_slots_not_used|'   + str(self.time_slots_not_used)
+
+		if self.packets_delivered_by_tag is not None and len(self.packets_delivered_by_tag) > 0:
+			print 'packets_by_tag|' + ','.join(map(lambda x: str(x[0]) + '=' + str(x[1]) , self.packets_delivered_by_tag.iteritems()))
+
 	def __str__(self):
 		normalize = lambda v: float(v) / float(self.total_duration)
 

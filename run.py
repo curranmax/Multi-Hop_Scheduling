@@ -26,6 +26,8 @@ if __name__ == '__main__':
 
 	parser.add_argument('-profile', '--profile_code', action = 'store_true', help = 'If given, then the code is profiled, and results are outputted at the end')
 	parser.add_argument('-v', '--verbose', action = 'store_true', help = 'If given, then outputs intermediate updates')
+	parser.add_argument('-runner', '--runner_output', action = 'store_true', help = 'If given, outputs results appropriate for runner.py')
+	
 
 	args = parser.parse_args()
 
@@ -37,8 +39,6 @@ if __name__ == '__main__':
 	num_routes       = args.num_routes[0]
 	input_source     = args.input_source[0]
 
-	verbose = args.verbose
-
 	methods = args.methods
 
 	if 'all' in methods:
@@ -46,17 +46,33 @@ if __name__ == '__main__':
 
 	if input_source not in INPUT_SOURCES:
 		raise Exception('Invalid input_source: ' + str(input_source))
+	
+	profile_code  = args.profile_code
+	verbose       = args.verbose
+	runner_output = args.runner_output
 
-	if args.profile_code:
+	if runner_output:
+		# Overrides profile and verbose flags
+		profile_code = False
+		verbose      = False
+
+		# Outputs the other input params to stdout
+		print 'num_nodes|'        + str(num_nodes)
+		print 'max_route_length|' + str(max_route_length)
+		print 'window_size|'      + str(window_size)
+		print 'reconfig_delta|'   + str(reconfig_delta)
+		print 'num_routes|'       + str(num_routes)
+		print 'input_source|'     + str(input_source)
+
+		print 'methods|' + ','.join(methods)
+
+	if profile_code:
 		Profiler.turnOn()
 
 	# Get input
 	# Random Test data
 	if input_source == 'test':
 		flows = input_utils.generateTestFlows(num_nodes, max_route_length, num_routes, flow_prob = 1.0)
-		# for key in flows:
-		# 	print(flows[key])
-		print('number of flows', len(flows))
 
 	# Data based on real measurements
 	if input_source in ['microsoft', 'sigmetrics', 'facebook']:
@@ -80,7 +96,7 @@ if __name__ == '__main__':
 
 	if input_source == 'sigmetrics':
 		args = None
-		if num_nodes in [64, 100]:
+		if num_nodes in [50, 64, 100]:
 			args = {'c_l': 0.7, 'n_l': 4, 'c_s': 0.3, 'n_s': 12}
 
 		if num_nodes == 200:
@@ -126,15 +142,13 @@ if __name__ == '__main__':
 				# Runs the "vanilla" method, but uses the shortest route instead of a random route
 				shortest_route_flows = benchmark_utils.useShortestRouteFlow(flows)
 
-				schedule, result_metric = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta, verbose = verbose)
-				print method, result_metric
+				schedule, result_metric = algos.computeSchedule(num_nodes, shortest_route_flows, window_size, reconfig_delta, verbose = verbose)
 
 			if method == 'upper-bound':
 				# Runs the upper-bound where all flows only have a single hop
 				single_hop_flows = benchmark_utils.reduceToOneHop(flows)
 
 				schedule, result_metric = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta, verbose = verbose)
-				print method, result_metric
 
 			if method == 'split':
 				# Splits the window and flows into max_route_length sections
@@ -150,7 +164,6 @@ if __name__ == '__main__':
 				result_metrics = []
 				x = 1
 				for this_window_size, this_flows in splits:
-					print 'Running split', x, 'with window_size of', this_window_size
 					x += 1
 
 					# Runs the algorithm for one split
@@ -166,7 +179,6 @@ if __name__ == '__main__':
 				# Combined the schedules into one big one
 				total_schedule = algos.combineSchedules(schedules)
 				if total_schedule.totalDuration(reconfig_delta) != window_size:
-					print total_schedule.totalDuration(reconfig_delta), window_size
 					raise Exception('Split total schedule doesn\'t match window size')
 
 				# Checks if all hops of a flow are delivered
@@ -199,8 +211,6 @@ if __name__ == '__main__':
 				
 				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, precomputed_schedule = schedule, verbose = verbose)
 
-				print result_metric
-
 			if method == 'octopus+':
 				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = True, verbose = verbose)
 
@@ -209,4 +219,15 @@ if __name__ == '__main__':
 		pass
 
 	# Output result
+
+	if runner_output:
+		print 'OUTPUT'
+		for method in METHODS:
+			if method in results:
+				print 'method|' + method
+
+				_, result_metric = results[method]
+
+				result_metric.runnerOutput()
+
 	Profiler.stats()
