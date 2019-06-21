@@ -27,7 +27,7 @@ def plot_line(table, method, filename=None, x_label=None, y_label=None, legend=N
 	'''
 	markers    = ['o', 'h', 's', '^', 'D', 'P']     # markers
 	linestyles = ['-', '--', '-', ':', '--', '-.']  # line styles
-	plt.rcParams['font.size'] = 30
+	plt.rcParams['font.size'] = 40
 	fig, ax = plt.subplots(figsize=(16, 15))
 	X  = [row[0] for row in table]
 	num = len(table[0]) - 1                         # number of methods
@@ -42,7 +42,7 @@ def plot_line(table, method, filename=None, x_label=None, y_label=None, legend=N
 	y_min = np.min(np.min(table, 0)[1:]) - 5
 	y_max = 100
 	plt.ylim([y_min, y_max])
-	plt.legend(bbox_to_anchor=(0., 1.), loc='lower left', ncol=3)
+	plt.legend(bbox_to_anchor=(0., 1.), loc='lower left', ncol=3, fontsize=30)
 
 	if x_label:
 		ax.set_xlabel(x_label)
