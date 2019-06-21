@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import tabulate
 
 METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+']
-METRIC  = ['percent_packets_delivered', 'link_utilization', 'objective_value', 'percent_objective_value']
-METRIC_ = ['% of Packets Deliverd',     'Link Utilization', 'Objective Value', '% of Objectetive Value']
+METRIC  = ['percent_packets_delivered', 'link_utilization',      'objective_value', 'percent_objective_value']
+METRIC_ = ['% of Packets Deliverd',     '% of Link Utilization', 'Objective Value', '% of Objectetive Value']
 
 def getMetric(inpt, output, metric = 'percent_objective_value'):
 	if metric == 'percent_packets_delivered':
@@ -41,11 +41,11 @@ def plot_line(table, method, filename=None, x_label=None, y_label=None):
 		Y.append(y)
 	for i in range(0, num):
 		plt.plot(X, Y[i], linestyle=linestyles[i], linewidth=4, marker=markers[i], markersize=8, label=method[i])
-	
+
 	plt.xticks(X)
 	y_min = np.min(np.min(table, 0)[1:])*0.9
 	y_max = np.max(np.max(table, 0)[1:])
-	y_max = 100 if y_max <= 100 else y_max*1.02
+	y_max = 101 if y_max <= 100 else y_max*1.02
 	plt.ylim([y_min, y_max])
 	plt.legend(bbox_to_anchor=(0., 1.), loc='lower left', ncol=3, fontsize=30)
 
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
 	data = runner.readDataFromFile('data/6-20/first_run.txt')
 
-	for i in range(2, len(METRIC)):
+	for i in range(0, len(METRIC)):
 		# Reconfig Delta test
 		rd_table = {}
 		for inpt, output_by_method in data:
