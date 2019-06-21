@@ -319,10 +319,13 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, ma
 	best_alpha           = None
 	best_matching        = None
 
+	# Calculates weights for all edges and alphas at once
+	all_weights_by_alpha = calculateAllWeights(subflows_by_next_hop, alphas)
+
 	# Tries all alpha values in alphas and finds the maximum weighted matching in each
 	for alpha in sorted(alphas):
 		# Creates the graph for the given alpha
-		graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, max_weight_matching_library = max_weight_matching_library)
+		graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, all_weights_by_alpha[alpha], max_weight_matching_library = max_weight_matching_library)
 
 		# Find the maximum weight matching of the graph using a 3rd party library
 		if max_weight_matching_library is 'networkx':
@@ -358,15 +361,11 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, ma
 #   subflows_by_next_hop --> All subflows grouped by their next hop. SubFlows in each group are sorted from shortest to longest with flow.id as a tiebreak. Must be a dict with keys of (curNode(), nextNode()) and value of list of SubFlow.
 #   alpha --> The matching duration given in # of packets.
 #   num_nodes --> Number of nodes in the network.
-#   calc_weight_func --> Function that returns the weighted number of packets that can be sent by a set of subflows in a given duration. Must be a function with two arguments (a list of SubFlows, duration).
+#   all_weights --> weights for each edge (src, dst)
 # Ouput:
 #   Returns a nx.Graph object that is a complete bipartite graph with edge weights. Note the edge (x, y) in the returned graph corresponds the edge (x, y - num_node) in the rest of the code.
-def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, calc_weight_func = None, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
+def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, all_weights, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
 	Profiler.start('createBipartiteGraph')
-
-	# If no calc_weight_func given, use default function
-	if calc_weight_func is None:
-		calc_weight_func = calculateTotalWeight
 
 	# Creates the graph
 	if max_weight_matching_library is 'networkx':
@@ -379,13 +378,13 @@ def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, calc_weight_fun
 		graph.add_nodes_from(xrange(num_nodes, 2 * num_nodes), bipartite = 1)
 
 		# Creates the weighted edges in bipartite graph
-		graph.add_weighted_edges_from([(i, j + num_nodes, calc_weight_func(subflows, alpha)) for (i, j), subflows in subflows_by_next_hop.iteritems()])
+		graph.add_weighted_edges_from([(i, j + num_nodes, all_weights[(i, j)]) for (i, j), subflows in subflows_by_next_hop.iteritems()])
 
 	elif max_weight_matching_library is 'scipy':
 		graph = np.zeros((num_nodes, num_nodes))
 
 		for (i, j), subflows in subflows_by_next_hop.iteritems():
-			graph[i][j] = calc_weight_func(subflows, alpha)
+			graph[i][j] = all_weights[(i, j)]
 
 	else:
 		raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
@@ -393,6 +392,9 @@ def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, calc_weight_fun
 	Profiler.end('createBipartiteGraph')
 	return graph
 
+# |------------------|
+# |     OUTDATED     |
+# |------------------|
 # Finds the weighted number of packets that can be sent of subflows in alpha time.
 # Input:
 #   subflows --> list of SubFlows sorted by increasing getInvweight / decreasing getWeight()
@@ -415,6 +417,46 @@ def calculateTotalWeight(subflows, alpha):
 
 	Profiler.end('calculateTotalWeight')
 	return weighted_sum
+
+# Calculates the weighted sum for each edge and for each possible alpha
+# Input:
+#   subflows_by_next_hop --> Subflows grouped by next hop
+#   alphas --> set of all possible alphas
+# Outpu:
+#   all_weights_by_alpha --> Dict keyed by alpha, each value is a dictionary keyed by edge (src, dst) with values of the edge weight.
+def calculateAllWeights(subflows_by_next_hop, alphas):
+	Profiler.start('calculateAllWeights')
+	all_weights_by_alpha = defaultdict(dict)
+
+	sorted_alphas = sorted(alphas)
+
+	for (i, j), subflows in subflows_by_next_hop.iteritems():
+		# Goes through alphas and subflows together
+		cur_alpha_ind = 0
+		cur_subflow_ind = 0
+
+		weighted_sum = 0.0   # Weighted packets for subflows already processed
+		used_time    = 0     # Number of packets from subflows already processed
+		while cur_subflow_ind < len(subflows) and cur_alpha_ind < len(sorted_alphas):
+			if sorted_alphas[cur_alpha_ind] <= used_time + subflows[cur_subflow_ind].getSize():
+				# If the alpha lands halfway through a subflow, calculates this alpha, and advance the alpha
+				all_weights_by_alpha[sorted_alphas[cur_alpha_ind]][(i, j)] = weighted_sum + subflows[cur_subflow_ind].getWeight() * (sorted_alphas[cur_alpha_ind] - used_time)
+				cur_alpha_ind += 1
+			else:
+				# If the alpha goes into the next subflow, update weighted_sum and used_time, and advance the subflow
+				weighted_sum += subflows[cur_subflow_ind].getWeight() * subflows[cur_subflow_ind].getSize()
+				used_time    += subflows[cur_subflow_ind].getSize()
+				
+				cur_subflow_ind += 1
+
+		# Add the weighted_sum for any alpha tha tis longer than all of the subflows
+		while cur_alpha_ind < len(sorted_alphas):
+			all_weights_by_alpha[sorted_alphas[cur_alpha_ind]][(i, j)] = weighted_sum
+			cur_alpha_ind += 1
+
+	Profiler.end('calculateAllWeights')
+
+	return all_weights_by_alpha
 
 # Converts the networkx matching to our matching
 # Input:
