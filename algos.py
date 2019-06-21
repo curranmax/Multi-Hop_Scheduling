@@ -76,23 +76,53 @@ class ResultMetric:
 
 # Holds a subflow of a input_utils.Flow
 class SubFlow:
+	next_subflow_id = 0
+
 	# Input must a input_utils.flow
-	def __init__(self, flow = None, subflow = None):
+	def __init__(self, flow = None, subflow = None, override_route = None, override_subflow_id = None, override_weight = None):
 		if flow is not None:
 			# Reference to the parent flow
 			self.flow = flow
 
+			# ID of this subflow
+			if override_subflow_id is None:
+				self.subflow_id = self.flow.id
+			else:
+				self.subflow_id = override_subflow_id
+			if self.subflow_id >= SubFlow.next_subflow_id:
+				SubFlow.next_subflow_id = self.subflow_id + 1
+
 			# Remaining route of the subflow (starting at curNode() and ending at self.flow.dst)
-			self.rem_route = list(self.flow.route)
+			if override_route is None:
+				self.rem_route = list(self.flow.route)
+			else:
+				self.rem_route = list(override_route)
 
 			# This subflow's size.
 			self.size = self.flow.size
+
+			# If this is not none, this value overrides self.flow.weight() and self.flow.invweight()
+			self.override_weight = override_weight
 		elif subflow is not None:
 			self.flow = subflow.flow
 
-			self.rem_route = list(subflow.rem_route)
+			if override_subflow_id is None:
+				self.subflow_id = SubFlow.next_subflow_id
+				SubFlow.next_subflow_id += 1
+			else:
+				self.subflow_id = override_subflow_id
+				if self.subflow_id >= SubFlow.next_subflow_id:
+					SubFlow.next_subflow_id = self.subflow_id + 1
+
+			if override_route is None:
+				self.rem_route = list(subflow.rem_route)
+			else:
+				self.rem_route = list(override_route)
 
 			self.size = subflow.size
+
+			# If this is not none, this value overrides self.flow.weight() and self.flow.invweight()
+			self.override_weight = override_weight
 		else:
 			raise Exception('Must specify either a flow or subflow to create a subflow')
 
@@ -108,17 +138,35 @@ class SubFlow:
 
 		return self.rem_route[1]
 
+	def destNode(self):
+		if len(self.rem_route) < 2:
+			raise Exception('Subflow doesn\'t have a dest node')
+
+		return self.rem_route[-1]
+
 	def weight(self):
-		return self.flow.weight()
+		if self.override_weight is None:
+			return self.flow.weight()
+		else:
+			return self.override_weight
 
 	def invweight(self):
-		return self.flow.invweight()
+		if self.override_weight is None:
+			return self.flow.invweight()
+		else:
+			return self.override_weight
 
 	def flowID(self):
 		return self.flow.id
 
+	def subflowID(self):
+		return self.subflow_id
+
 	def getSize(self):
 		return self.size
+
+	def remainingRouteLength(self):
+		return len(self.rem_route) - 1
 
 	# Sends as much of this subflow as possible in time alpha.
 	# Input:
@@ -385,13 +433,15 @@ def convertMatching(graph, matching, num_nodes, max_weight_matching_library = MA
 # Output:
 #   total_packets_sent --> The total number of packets sent
 #   remaing_alpha --> The number of packets that can still be sent.
+#   updated_subflows --> List of all subflows that were updated. Doesn't include subflows that were split from existing ones.
 #   finished_subflows --> List of subflows that have reached their destination.
 #   new_subflows --> List of new subflows that were split from one the inputted subflows.
-def updateSubFlows(subflows, alpha):
+def updateSubFlows(subflows, alpha, track_updated_subflows = False):
 	Profiler.start('updateSubFlows')
 
-	finished_subflows = []
-	new_subflows = []
+	updated_subflows  = [] # All subflows that are updated (not included any split_subflows)
+	finished_subflows = [] # All subflows that have reached their destination
+	new_subflows      = [] # All new subflows that were split from existing subflows
 
 	total_packets_sent = 0
 
@@ -400,11 +450,15 @@ def updateSubFlows(subflows, alpha):
 
 		total_packets_sent += packets_sent
 
-		if split_subflow is not None:
-			new_subflows.append(split_subflow)
+		if track_updated_subflows:
+			# Only maintains this list if requested in order to conserve memory
+			updated_subflows.append(subflow)
 
 		if is_subflow_done:
 			finished_subflows.append(subflow)
+
+		if split_subflow is not None:
+			new_subflows.append(split_subflow)
 
 		if alpha <= 0:
 			break
@@ -412,7 +466,7 @@ def updateSubFlows(subflows, alpha):
 	remaing_alpha = alpha
 
 	Profiler.end('updateSubFlows')
-	return total_packets_sent, remaing_alpha, finished_subflows, new_subflows
+	return total_packets_sent, remaing_alpha, updated_subflows, finished_subflows, new_subflows
 
 # Computes the multi-hop schedule for the given flows
 # Input:
@@ -426,11 +480,23 @@ def updateSubFlows(subflows, alpha):
 #   schedule --> The computed schedule, containing the matchings and durations
 #   result_metric --> Holds the various metrics to judge the algorithm
 #   (Optional) completed_flow_ids --> List of flow_ids of subflows that reach their destination
-def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_completed_flow_ids = False, precomputed_schedule = None):
+def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_completed_flow_ids = False, precomputed_schedule = None, consider_all_routes = False, backtrack = False, verbose = False):
 	Profiler.start('computeSchedule')
+	# TODO Check that the set of flags are consistent
 
 	# Initialzie subflows (same as the remaining traffic)
-	current_subflows = [SubFlow(flow = flows[k]) for k in flows]
+	if consider_all_routes:
+		starting_subflows = [SubFlow(flow = flow, override_route = route) for _, flow in flows.iteritems() for route in flow.all_routes]
+
+		track_updated_subflows = True
+	else:
+		starting_subflows = [SubFlow(flow = flow) for _, flow in flows.iteritems()]
+
+		track_updated_subflows = False
+
+	current_subflows_by_subflow_id = defaultdict(list)
+	for subflow in starting_subflows:
+		current_subflows_by_subflow_id[subflow.subflowID()].append(subflow)
 	completed_subflows = []
 
 	# Initialize the schedule, which will hold the result
@@ -447,14 +513,37 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 		precomputed_schedule_ind = 0
 
 	while schedule.totalDuration(reconfig_delta) < window_size:
+		if verbose:
+			print 'Starting iteration with', window_size - schedule.totalDuration(reconfig_delta), 'time left'
+
 		Profiler.start('computeSchedule-iteration')
+
+		if backtrack:
+			Profiler.start('computeSchedule-backtrack')
+			# Check if a subflow can be "backtracking", if so adds the backtrack subflow
+			for _, subflows in current_subflows_by_subflow_id.iteritems():
+				# Can only backtrack on single subflows with two or more hops left.
+				if len(subflows) == 1 and subflows[0].remainingRouteLength() >= 2:
+					this_subflow = subflows[0]
+
+					# The backtrack route is just a direct route to the destination
+					backtrack_route = [this_subflow.curNode(), this_subflow.destNode()]
+
+					# Finds the weight of the backtrack subflow. It is equal to the sum of the weights of the remaining hops in the subflow
+					backtrack_weight = this_subflow.remainingRouteLength() * this_subflow.weight()
+
+					# Creates the backtrack_subflow and adds it to the system.
+					backtrack_subflow = SubFlow(subflow = this_subflow, override_route = backtrack_route, override_subflow_id = this_subflow.subflowID(), override_weight = backtrack_weight)
+
+			Profiler.end('computeSchedule-backtrack')
 
 		# Gets the subflows_by_next_hop information from remaining_flows
 		# Keys are (curNode(), nextNode()) and values are a list of NextHopFlows
 		Profiler.start('computeSchedule-subflows_by_next_hop')
 		subflows_by_next_hop = defaultdict(list)
-		for subflow in current_subflows:
-			subflows_by_next_hop[(subflow.curNode(), subflow.nextNode())].append(subflow)
+		for _, subflows in current_subflows_by_subflow_id.iteritems():
+			for subflow in subflows:
+				subflows_by_next_hop[(subflow.curNode(), subflow.nextNode())].append(subflow)
 		Profiler.end('computeSchedule-subflows_by_next_hop')
 
 		# Sorts each list in subflows_by_next_hop
@@ -484,28 +573,63 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 		schedule.addMatching(matching, alpha, matching_weight = matching_weight)
 
 		# Update remaining
+		Profiler.start('computeSchedule-updateAllSubflows')
 		for edge in matching:
-			packets_sent, unused_alpha, finished_subflows, new_subflows = updateSubFlows(subflows_by_next_hop[edge], alpha)
+			packets_sent, unused_alpha, updated_subflows, finished_subflows, new_subflows = updateSubFlows(subflows_by_next_hop[edge], alpha, track_updated_subflows = track_updated_subflows)
 			
 			time_slots_used += packets_sent
 			time_slots_not_used += unused_alpha
 
-			# Removes any subflows that have finished from current_subflows and places adds them to completed_subflows
+			# Removes subflows of other routes once one of the subflows was chosen.
+			if consider_all_routes:
+				for updated_subflow in updated_subflows:
+					# Gets the other subflows with the same subflows
+					related_subflows = current_subflows_by_subflow_id[updated_subflow.subflowID()]
+
+					# If there is only one other related subflow it should be the updated_subflow itself, so there is nothing to be done
+					if len(related_subflows) == 1:
+						if updated_subflow is not related_subflows[0]:
+							raise Exception('Unexpected subflow in related_subflows')
+
+						continue
+
+					if len(related_subflows) == 0:
+						raise Exception('No related_subflows found')
+
+					# Remove all other related subflows, by simply replacing the list with a list with just this subflow
+					current_subflows_by_subflow_id[updated_subflow.subflowID()] = [updated_subflow]
+
+			# Removes any subflows that have finished from current_subflows_by_subflow_id and places adds them to completed_subflows
 			for fin_subflow in finished_subflows:
-				current_subflows.remove(fin_subflow)
+				current_subflows_by_subflow_id[fin_subflow.subflowID()].remove(fin_subflow)
+
+				if len(current_subflows_by_subflow_id[fin_subflow.subflowID()]) == 0:
+					del current_subflows_by_subflow_id[fin_subflow.subflowID()]
+
 				completed_subflows.append(fin_subflow)
 
-			# Adds any sublfows that were split to current_subflows
+			# Adds any sublfows that were split to current_subflows_by_subflow_id
 			for new_subflow in new_subflows:
-				current_subflows.append(new_subflow)
+				current_subflows_by_subflow_id[new_subflow.subflowID()].append(new_subflow)
+			
 
+		Profiler.end('computeSchedule-updateAllSubflows')
 		Profiler.end('computeSchedule-iteration')
 
 	# Compute result metrics
 	total_objective_value = schedule.getTotalMatchingWeight()
 
 	packets_delivered = sum(subflow.getSize() for subflow in completed_subflows)
-	packets_not_delivered = sum(subflow.getSize() for subflow in current_subflows)
+
+	# All subflows with the same subflow ID represent one undelivered subflow. All of these subflows should have the same size, and there should be no empty lists.
+	for _, subflows in current_subflows_by_subflow_id.iteritems():
+		if len(subflows) == 0:
+			raise Exception('Still have a subflow list with no subflows')
+
+		if any(subflow.getSize() != subflows[0].getSize() for subflow in subflows):
+			raise Exception('Some subflows with the same ID don\'t have the same size')
+
+	packets_not_delivered = sum(subflows[0].getSize() for _, subflows in current_subflows_by_subflow_id.iteritems())
 
 	# Add in reconfiguration delay to unused time slots
 	time_slots_not_used += reconfig_delta * num_nodes * schedule.numReconfigs()

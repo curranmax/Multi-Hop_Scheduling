@@ -8,7 +8,7 @@ import argparse
 import random
 
 INPUT_SOURCES = ['test', 'microsoft', 'sigmetrics', 'facebook']
-METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse']
+METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+']
 
 # python run.py -nn 100 -rl 4 -ws 100 -rd 1 -is sigmetrics -profile
 
@@ -25,6 +25,7 @@ if __name__ == '__main__':
 	parser.add_argument('-m', '--methods', metavar = 'METHODS', type = str, nargs = '+', default = ['octopus-r'], help = 'Set of methods to run. Must be in the set of (' + ', '.join(METHODS) + ') or "all"')
 
 	parser.add_argument('-profile', '--profile_code', action = 'store_true', help = 'If given, then the code is profiled, and results are outputted at the end')
+	parser.add_argument('-v', '--verbose', action = 'store_true', help = 'If given, then outputs intermediate updates')
 
 	args = parser.parse_args()
 
@@ -35,6 +36,8 @@ if __name__ == '__main__':
 	reconfig_delta   = args.reconfig_delta[0]
 	num_routes       = args.num_routes[0]
 	input_source     = args.input_source[0]
+
+	verbose = args.verbose
 
 	methods = args.methods
 
@@ -117,20 +120,20 @@ if __name__ == '__main__':
 
 			if method == 'octopus-r':
 				# Runs the main "vannilla" method
-				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta)
-				print method, result_metric
+				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, verbose = verbose)
 
 			if method == 'octopus-s':
+				# Runs the "vanilla" method, but uses the shortest route instead of a random route
 				shortest_route_flows = benchmark_utils.useShortestRouteFlow(flows)
 
-				schedule, result_metric = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta)
+				schedule, result_metric = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta, verbose = verbose)
 				print method, result_metric
 
 			if method == 'upper-bound':
 				# Runs the upper-bound where all flows only have a single hop
 				single_hop_flows = benchmark_utils.reduceToOneHop(flows)
 
-				schedule, result_metric = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta)
+				schedule, result_metric = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta, verbose = verbose)
 				print method, result_metric
 
 			if method == 'split':
@@ -151,7 +154,7 @@ if __name__ == '__main__':
 					x += 1
 
 					# Runs the algorithm for one split
-					schedule, result_metric, finished_flow_ids = algos.computeSchedule(num_nodes, this_flows, this_window_size, reconfig_delta, return_completed_flow_ids = True)
+					schedule, result_metric, finished_flow_ids = algos.computeSchedule(num_nodes, this_flows, this_window_size, reconfig_delta, return_completed_flow_ids = True, verbose = verbose)
 
 					schedules.append(schedule)
 					result_metrics.append(result_metric)
@@ -189,13 +192,17 @@ if __name__ == '__main__':
 				result_metric = total_result_metric
 
 			if method == 'eclipse':
+				# Runs "eclipse" method. First computes schedule using "upper-bound" method, then routes upper-bound.
 				single_hop_flows = benchmark_utils.reduceToOneHop(flows)
 
-				schedule, _ = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta)
+				schedule, _ = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta, verbose = verbose)
 				
-				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, precomputed_schedule = schedule)
+				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, precomputed_schedule = schedule, verbose = verbose)
 
 				print result_metric
+
+			if method == 'octopus+':
+				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = True, verbose = verbose)
 
 			results[method] = (schedule, result_metric)
 	except KeyboardInterrupt:
