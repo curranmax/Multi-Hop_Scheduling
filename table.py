@@ -22,7 +22,7 @@ def getMetric(inpt, output, metric = 'percent_objective_value'):
 	raise Exception('Unexpected metric: ' + str(metric))
 
 
-def plot_line(table, method, filename=None, x_label=None, y_label=None, legend=None):
+def plot_line(table, method, filename=None, x_label=None, y_label=None):
 	'''
 	'''
 	markers    = ['o', 'h', 's', '^', 'D', 'P']     # markers
