@@ -8,7 +8,7 @@ import subprocess
 # Defines default values for parameters
 DEFAULT_NUM_NODES        = 64
 DEFAULT_MAX_ROUTE_LENGTH = 3
-DEFAULT_WINDOW_SIZE      = 100
+DEFAULT_WINDOW_SIZE      = 10000
 DEFAULT_RECONFIG_DELTA   = 20
 DEFAULT_NUM_ROUTES       = 10
 DEFAULT_INPUT_SOURCE     = 'sigmetrics'
