@@ -387,12 +387,12 @@ def generateRandomRoutes(src, dst, num_nodes, max_route_length, num_routes):
 		valid = True
 		for other_route in routes:
 			# Check if same first hop
-			if route[0] == other_route[0] and route[1] == other_route[1]:
+			if this_route[0] == other_route[0] and this_route[1] == other_route[1]:
 				valid = False
 				break
 
 			# Check if the route are the same (not really necessary, because the same routes will share the same first hop)
-			if all(nr == no for nr, no in zip(route, other_route)):
+			if all(nr == no for nr, no in zip(this_route, other_route)):
 				valid = False
 				break
 
