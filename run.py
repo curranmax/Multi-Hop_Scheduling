@@ -127,96 +127,93 @@ if __name__ == '__main__':
 		# print(traffic)
 
 	# Run test
-	try:
-		results = {}
-		for method in methods:
-			if method not in METHODS:
-				print 'Invalid method:', method
-				continue
+	results = {}
+	for method in methods:
+		if method not in METHODS:
+			print 'Invalid method:', method
+			continue
 
-			if method == 'octopus-r':
-				# Runs the main "vannilla" method
-				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, verbose = verbose)
+		if method == 'octopus-r':
+			# Runs the main "vannilla" method
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, verbose = verbose)
 
-			if method == 'octopus-s':
-				# Runs the "vanilla" method, but uses the shortest route instead of a random route
-				shortest_route_flows = benchmark_utils.useShortestRouteFlow(flows)
+		if method == 'octopus-s':
+			# Runs the "vanilla" method, but uses the shortest route instead of a random route
+			shortest_route_flows = benchmark_utils.useShortestRouteFlow(flows)
 
-				schedule, result_metric = algos.computeSchedule(num_nodes, shortest_route_flows, window_size, reconfig_delta, verbose = verbose)
+			schedule, result_metric = algos.computeSchedule(num_nodes, shortest_route_flows, window_size, reconfig_delta, verbose = verbose)
 
-			if method == 'upper-bound':
-				# Runs the upper-bound where all flows only have a single hop
-				single_hop_flows = benchmark_utils.reduceToOneHop(flows)
+		if method == 'upper-bound':
+			# Runs the upper-bound where all flows only have a single hop
+			single_hop_flows = benchmark_utils.reduceToOneHop(flows)
 
-				schedule, result_metric = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta, verbose = verbose)
+			schedule, result_metric = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta, verbose = verbose)
 
-			if method == 'split':
-				# Splits the window and flows into max_route_length sections
-				number_of_splits = max_route_length
-				splits = benchmark_utils.splitWindow(window_size, number_of_splits, reconfig_delta, flows)
+		if method == 'split':
+			# Splits the window and flows into max_route_length sections
+			number_of_splits = max_route_length
+			splits = benchmark_utils.splitWindow(window_size, number_of_splits, reconfig_delta, flows)
 
-				# Used to check if all hops of a flow are completed
-				flow_by_id = {flow.id: flow for _, flow in flows.iteritems()}
-				split_flows_completed = {flow.id: 0 for _, flow in flows.iteritems()}
+			# Used to check if all hops of a flow are completed
+			flow_by_id = {flow.id: flow for _, flow in flows.iteritems()}
+			split_flows_completed = {flow.id: 0 for _, flow in flows.iteritems()}
 
-				# Holds the schedules and result_metrics from each split
-				schedules = []
-				result_metrics = []
-				x = 1
-				for this_window_size, this_flows in splits:
-					x += 1
+			# Holds the schedules and result_metrics from each split
+			schedules = []
+			result_metrics = []
+			x = 1
+			for this_window_size, this_flows in splits:
+				x += 1
 
-					# Runs the algorithm for one split
-					schedule, result_metric, finished_flow_ids = algos.computeSchedule(num_nodes, this_flows, this_window_size, reconfig_delta, return_completed_flow_ids = True, verbose = verbose)
+				# Runs the algorithm for one split
+				schedule, result_metric, finished_flow_ids = algos.computeSchedule(num_nodes, this_flows, this_window_size, reconfig_delta, return_completed_flow_ids = True, verbose = verbose)
 
-					schedules.append(schedule)
-					result_metrics.append(result_metric)
+				schedules.append(schedule)
+				result_metrics.append(result_metric)
 
-					# Tracks which flows has been completed
-					for k in finished_flow_ids:
-						split_flows_completed[k] += 1
+				# Tracks which flows has been completed
+				for k in finished_flow_ids:
+					split_flows_completed[k] += 1
 
-				# Combined the schedules into one big one
-				total_schedule = algos.combineSchedules(schedules)
-				if total_schedule.totalDuration(reconfig_delta) != window_size:
-					raise Exception('Split total schedule doesn\'t match window size')
+			# Combined the schedules into one big one
+			total_schedule = algos.combineSchedules(schedules)
+			if total_schedule.totalDuration(reconfig_delta) != window_size:
+				raise Exception('Split total schedule doesn\'t match window size')
 
-				# Checks if all hops of a flow are delivered
-				total_packets_delivered = 0
-				total_packets_not_delivered = 0
-				for fid, flow in flow_by_id.iteritems():
-					if split_flows_completed[fid] == len(flow.route) - 1:
-						# If all splits of a flow have completed, then the overall flow was delivered
-						total_packets_delivered += flow.size
-					else:
-						# If any split of a flow was not completed, then the overall flow was not delivered
-						total_packets_not_delivered += flow.size
+			# Checks if all hops of a flow are delivered
+			total_packets_delivered = 0
+			total_packets_not_delivered = 0
+			for fid, flow in flow_by_id.iteritems():
+				if split_flows_completed[fid] == len(flow.route) - 1:
+					# If all splits of a flow have completed, then the overall flow was delivered
+					total_packets_delivered += flow.size
+				else:
+					# If any split of a flow was not completed, then the overall flow was not delivered
+					total_packets_not_delivered += flow.size
 
-				# Calculates the time slots used and not used. Includes the reconfiguration delta between splits.
-				total_time_slots_used = sum(rm.time_slots_used for rm in result_metrics)
-				total_time_slots_not_used = sum(rm.time_slots_not_used for rm in result_metrics) + (num_nodes * reconfig_delta * (number_of_splits - 1))
+			# Calculates the time slots used and not used. Includes the reconfiguration delta between splits.
+			total_time_slots_used = sum(rm.time_slots_used for rm in result_metrics)
+			total_time_slots_not_used = sum(rm.time_slots_not_used for rm in result_metrics) + (num_nodes * reconfig_delta * (number_of_splits - 1))
 
-				# Gets the total result metric
-				total_result_metric = algos.ResultMetric(total_schedule.getTotalMatchingWeight(), total_packets_delivered, total_packets_not_delivered, total_schedule.totalDuration(reconfig_delta), total_time_slots_used, total_time_slots_not_used)
-				
-				# Renames the variables to fit the convention of the loop
-				schedule = total_schedule
-				result_metric = total_result_metric
+			# Gets the total result metric
+			total_result_metric = algos.ResultMetric(total_schedule.getTotalMatchingWeight(), total_packets_delivered, total_packets_not_delivered, total_schedule.totalDuration(reconfig_delta), total_time_slots_used, total_time_slots_not_used)
+			
+			# Renames the variables to fit the convention of the loop
+			schedule = total_schedule
+			result_metric = total_result_metric
 
-			if method == 'eclipse':
-				# Runs "eclipse" method. First computes schedule using "upper-bound" method, then routes upper-bound.
-				single_hop_flows = benchmark_utils.reduceToOneHop(flows)
+		if method == 'eclipse':
+			# Runs "eclipse" method. First computes schedule using "upper-bound" method, then routes upper-bound.
+			single_hop_flows = benchmark_utils.reduceToOneHop(flows)
 
-				schedule, _ = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta, verbose = verbose)
-				
-				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, precomputed_schedule = schedule, verbose = verbose)
+			schedule, _ = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta, verbose = verbose)
+			
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, precomputed_schedule = schedule, verbose = verbose)
 
-			if method == 'octopus+':
-				schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = True, verbose = verbose)
+		if method == 'octopus+':
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = True, verbose = verbose)
 
-			results[method] = (schedule, result_metric)
-	except KeyboardInterrupt:
-		pass
+		results[method] = (schedule, result_metric)
 
 	# Output result
 
