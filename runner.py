@@ -149,6 +149,7 @@ def getInputAndOutput(vals):
 	input_vals  = vals[:vals.index('OUTPUT')]
 	output_vals = vals[vals.index('OUTPUT') + 1:]
 
+	# TODO If any input_vals don't have the proper format, ignore them
 	input_dict = {val.split('|')[0]: val.split('|')[1] for val in input_vals}
 	inpt = Input(**input_dict)
 
@@ -236,7 +237,9 @@ RECONFIG_DELTA = 'reconfig_delta'
 SPARSITY       = 'sparsity'
 SKEWNESS       = 'skewness'
 
-EXPERIMENTS = [NUM_NODES, RECONFIG_DELTA, SPARSITY, SKEWNESS]
+TEST = 'test'
+
+EXPERIMENTS = [NUM_NODES, RECONFIG_DELTA, SPARSITY, SKEWNESS, TEST]
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = 'Runs multiple iterations of run.py and saves results to a file')
@@ -263,6 +266,9 @@ if __name__ == '__main__':
 	
 	inputs = []
 	for experiment in experiments:
+		if experiment == TEST:
+			inputs.append(Input())
+
 		if experiment == NUM_NODES:
 			num_nodes = [50, 100, 200, 300, 400, 500]
 

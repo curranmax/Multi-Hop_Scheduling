@@ -80,7 +80,7 @@ def splitWindow(window_size, number_of_splits, reconfig_delta, flows):
 			this_route = [this_src, this_dst]
 			split_flow = input_utils.Flow(flow.id, this_src, this_dst, flow.size, this_route, [this_route])
 
-			splits[split][1][k] = split_flow
+			splits[split][1][k] = (split_flow, flow.invweight())
 
 	Profiler.end('splitWindow')
 

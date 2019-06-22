@@ -2,12 +2,15 @@
 from profiler import Profiler
 
 from collections import defaultdict
+import copy
 import networkx as nx
 import numpy as np
 import scipy.optimize as scipy_opt
 
 # MAX_WEIGHT_MATCHING_LIBRARY = 'networkx'
 MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
+
+EPS = 0.01
 
 # Holds a multi-hop schedule
 class Schedule:
@@ -95,7 +98,7 @@ class SubFlow:
 	next_subflow_id = 0
 
 	# Input must a input_utils.flow
-	def __init__(self, flow = None, subflow = None, override_route = None, override_subflow_id = None, override_weight = None, tag = None):
+	def __init__(self, flow = None, subflow = None, override_route = None, override_subflow_id = None, override_size = None, override_weight = None, override_invweight = None, tag = None):
 		if flow is not None:
 			# Reference to the parent flow
 			self.flow = flow
@@ -105,26 +108,42 @@ class SubFlow:
 				self.subflow_id = self.flow.id
 			else:
 				self.subflow_id = override_subflow_id
+
 			if self.subflow_id >= SubFlow.next_subflow_id:
 				SubFlow.next_subflow_id = self.subflow_id + 1
 
 			# Remaining route of the subflow (starting at curNode() and ending at self.flow.dst)
 			if override_route is None:
 				self.rem_route = list(self.flow.route)
+				self.route     = list(self.flow.route)
 			else:
 				self.rem_route = list(override_route)
+				self.route     = list(override_route)
 
 			self.invweight = len(self.rem_route) - 1
 			self.weight    = 1.0 / float(self.invweight)
 
 			# This subflow's size.
-			self.size = self.flow.size
+			if override_size is None:
+				self.size = self.flow.size
+			else:
+				self.size = override_size
+
+			if override_weight is not None and override_invweight is not None:
+				raise Exception('Cannot supply both override_weight and override_invweight')
 
 			if override_weight is not None:
 				self.weight    = override_weight
 				self.invweight = 1.0 / self.weight
 
+			if override_invweight is not None:
+				self.invweight = override_invweight
+				self.weight    = 1.0 / float(self.invweight)
+
 			self.tag = tag
+
+			self.is_backtrack = False
+			self.parent_subflow = None
 		elif subflow is not None:
 			self.flow = subflow.flow
 
@@ -138,17 +157,29 @@ class SubFlow:
 
 			if override_route is None:
 				self.rem_route = list(subflow.rem_route)
+				self.route     = list(subflow.route)
 			else:
 				self.rem_route = list(override_route)
+				self.route     = list(override_route)
 
-			self.size = subflow.size
+			if override_size is None:
+				self.size = self.flow.size
+			else:
+				self.size = override_size
 
 			self.invweight = subflow.invweight
 			self.weight    = subflow.weight
 
+			if override_weight is not None and override_invweight is not None:
+				raise Exception('Cannot supply both override_weight and override_invweight')
+
 			if override_weight is not None:
 				self.weight    = override_weight
 				self.invweight = 1.0 / self.weight
+
+			if override_invweight is not None:
+				self.invweight = override_invweight
+				self.weight    = 1.0 / float(self.invweight)
 			
 			if tag is not None:
 				self.tag = tag
@@ -156,6 +187,12 @@ class SubFlow:
 				self.tag = subflow.tag
 			else:
 				self.tag = None
+
+			self.is_backtrack = subflow.is_backtrack
+			if subflow.is_backtrack:
+				self.parent_subflow = subflow
+			else:
+				self.parent_subflow = None
 		else:
 			raise Exception('Must specify either a flow or subflow to create a subflow')
 
@@ -171,14 +208,33 @@ class SubFlow:
 
 		return self.rem_route[1]
 
+	def srcNode(self):
+		if len(self.route) < 1:
+			raise Exception('Subflow does\'t have a src node')
+
+		return self.route[0]
+
 	def destNode(self):
-		if len(self.rem_route) < 2:
+		if len(self.route) < 2:
 			raise Exception('Subflow doesn\'t have a dest node')
 
-		return self.rem_route[-1]
+		return self.route[-1]
 
-	def getWeight(self):
-		return self.weight
+	def getWeight(self, eps = 0.0):
+		rem, tot = self.remainingRouteLength(), self.totalRouteLength()
+
+		if (rem == 1 and tot == 1) or (rem == 2 and tot == 3):
+			add = 0.0
+
+		elif (rem == 1 and tot == 2) or (rem == 1 and tot == 3):
+			add = eps
+
+		elif (rem == 2 and tot == 2) or (rem == 3 and tot == 3):
+			add = -eps
+		else:
+			raise Exception('Do not know what eps to use')
+
+		return self.weight + add
 
 	def getInvweight(self):
 		return self.invweight
@@ -194,6 +250,9 @@ class SubFlow:
 
 	def remainingRouteLength(self):
 		return len(self.rem_route) - 1
+
+	def totalRouteLength(self):
+		return len(self.route) - 1
 
 	# Sends as much of this subflow as possible in time alpha.
 	# Input:
@@ -242,7 +301,7 @@ def sortSubFlows(subflows):
 
 	# Sorts flows by shortest route to longest route. Uses flow.id as a tiebreaker in order to keep things deterministic.
 	Profiler.start('sortSubFlows')
-	subflows.sort(key = lambda x: (x.getInvweight(), x.flowID()))
+	subflows.sort(key = lambda x: (x.getInvweight(), x.remainingRouteLength(), x.flowID()))
 	Profiler.end('sortSubFlows')
 
 # Given the next hop traffic, find the set of alphas to consider
@@ -450,11 +509,11 @@ def calculateAllWeights(subflows_by_next_hop, alphas):
 		while cur_subflow_ind < len(subflows) and cur_alpha_ind < len(sorted_alphas):
 			if sorted_alphas[cur_alpha_ind] <= used_time + subflows[cur_subflow_ind].getSize():
 				# If the alpha lands halfway through a subflow, calculates this alpha, and advance the alpha
-				all_weights_by_alpha[sorted_alphas[cur_alpha_ind]][(i, j)] = weighted_sum + subflows[cur_subflow_ind].getWeight() * (sorted_alphas[cur_alpha_ind] - used_time)
+				all_weights_by_alpha[sorted_alphas[cur_alpha_ind]][(i, j)] = weighted_sum + subflows[cur_subflow_ind].getWeight(eps = EPS) * (sorted_alphas[cur_alpha_ind] - used_time)
 				cur_alpha_ind += 1
 			else:
 				# If the alpha goes into the next subflow, update weighted_sum and used_time, and advance the subflow
-				weighted_sum += subflows[cur_subflow_ind].getWeight() * subflows[cur_subflow_ind].getSize()
+				weighted_sum += subflows[cur_subflow_ind].getWeight(eps = EPS) * subflows[cur_subflow_ind].getSize()
 				used_time    += subflows[cur_subflow_ind].getSize()
 				
 				cur_subflow_ind += 1
@@ -543,25 +602,36 @@ def updateSubFlows(subflows, alpha, track_updated_subflows = False):
 #   flows --> dict with keys (src_node_id, dst_node_id) and values of input_utils.Flow
 #   window_size --> The total duration to compute the schedule
 #   reconfig_delta --> The time it takes to reconfigure the network
-#   return_completed_flow_ids --> If given, returns the flow_ids of completed subflows
+#   upper_bound --> Runs the upper-bound method, where there are no order constraints for routes
+#   return_packets_delivered_by_flow_id --> If given, the number of packets delivered for each flow
+#   flows_have_given_invweight --> If given, then flows has values of (input_utils.Flow, invweight) instead of just input_utils.Flow
 #   precomputed_schedule --> If given, uses the given schedule instead of computed maximum weight matchings
 # Output:
 #   schedule --> The computed schedule, containing the matchings and durations
 #   result_metric --> Holds the various metrics to judge the algorithm
 #   (Optional) completed_flow_ids --> List of flow_ids of subflows that reach their destination
-def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_completed_flow_ids = False, precomputed_schedule = None, consider_all_routes = False, backtrack = False, verbose = False):
+def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound = False, return_packets_delivered_by_flow_id = False, flows_have_given_invweight = False, precomputed_schedule = None, consider_all_routes = False, backtrack = False, verbose = False):
 	Profiler.start('computeSchedule')
 	# TODO Check that the set of flags are consistent
 
 	# Initialzie subflows (same as the remaining traffic)
-	if consider_all_routes:
-		starting_subflows = [SubFlow(flow = flow, override_route = route, tag = str(len(route) - 1) + '-hop') for _, flow in flows.iteritems() for route in flow.all_routes]
+	if upper_bound:
+		starting_subflows = []
+		sf_id = 0
+		for _, flow in flows.iteritems():
+			for i in range(len(flow.route) - 1):
+				starting_subflows.append(SubFlow(flow = flow, override_subflow_id = sf_id, override_route = [flow.route[i], flow.route[i + 1]], override_invweight = flow.invweight()))
 
-		track_updated_subflows = True
+				sf_id += 1
+
+	elif consider_all_routes:
+		starting_subflows = [SubFlow(flow = flow, override_route = route, tag = str(len(route) - 1) + '-hop') for _, flow in flows.iteritems() for route in flow.all_routes]
+	elif flows_have_given_invweight:
+		starting_subflows = [SubFlow(flow = flow, override_invweight = invweight) for _, (flow, invweight) in flows.iteritems()]
 	else:
 		starting_subflows = [SubFlow(flow = flow) for _, flow in flows.iteritems()]
 
-		track_updated_subflows = False
+	track_updated_subflows = consider_all_routes or backtrack
 
 	current_subflows_by_subflow_id = defaultdict(list)
 	for subflow in starting_subflows:
@@ -588,23 +658,27 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 		Profiler.start('computeSchedule-iteration')
 
 		if backtrack:
-			Profiler.start('computeSchedule-backtrack')
+			Profiler.start('computeSchedule-add_backtrack')
 			# Check if a subflow can be "backtracking", if so adds the backtrack subflow
 			for _, subflows in current_subflows_by_subflow_id.iteritems():
-				# Can only backtrack on single subflows with two or more hops left.
-				if len(subflows) == 1 and subflows[0].remainingRouteLength() >= 2:
+				# Can only backtrack on single subflows with two or more hops left, and that has a direct route in all_routes
+				if len(subflows) == 1 and subflows[0].remainingRouteLength() >= 2 and any(len(flow_route) == 2 for flow_route in subflows[0].flow.all_routes):
 					this_subflow = subflows[0]
 
 					# The backtrack route is just a direct route to the destination
-					backtrack_route = [this_subflow.curNode(), this_subflow.destNode()]
+					backtrack_route = [this_subflow.srcNode(), this_subflow.destNode()]
 
 					# Finds the weight of the backtrack subflow. It is equal to the sum of the weights of the remaining hops in the subflow
 					backtrack_weight = this_subflow.remainingRouteLength() * this_subflow.getWeight()
 
 					# Creates the backtrack_subflow and adds it to the system.
-					backtrack_subflow = SubFlow(subflow = this_subflow, override_route = backtrack_route, override_subflow_id = this_subflow.subflowID(), override_weight = backtrack_weight, tag = '1-hop_backtrack')
+					backtrack_subflow = SubFlow(subflow = this_subflow, override_route = backtrack_route, override_size = this_subflow.getSize(), override_subflow_id = this_subflow.subflowID(), override_weight = backtrack_weight, tag = '1-hop_backtrack')
 
-			Profiler.end('computeSchedule-backtrack')
+					this_subflow.is_backtrack = True
+					backtrack_subflow.is_backtrack = True
+					
+					current_subflows_by_subflow_id[backtrack_subflow.subflowID()].append(backtrack_subflow)
+			Profiler.end('computeSchedule-add_backtrack')
 
 		# Gets the subflows_by_next_hop information from remaining_flows
 		# Keys are (curNode(), nextNode()) and values are a list of NextHopFlows
@@ -643,6 +717,11 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 
 		# Update remaining
 		Profiler.start('computeSchedule-updateAllSubflows')
+		if backtrack:
+			backtrack_updated_subflows_by_subflow_ids  = defaultdict(list)
+			backtrack_finished_subflows_by_subflow_ids = defaultdict(list)
+			backtrack_new_subflows_by_subflow_ids      = defaultdict(list)
+		
 		for edge in matching:
 			packets_sent, unused_alpha, updated_subflows, finished_subflows, new_subflows = updateSubFlows(subflows_by_next_hop[edge], alpha, track_updated_subflows = track_updated_subflows)
 			
@@ -665,49 +744,311 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 					if len(related_subflows) == 0:
 						raise Exception('No related_subflows found')
 
-					# Remove all other related subflows, by simply replacing the list with a list with just this subflow
-					current_subflows_by_subflow_id[updated_subflow.subflowID()] = [updated_subflow]
+					if updated_subflow.is_backtrack:
+						if backtrack and len(related_subflows) == 2 and all(sf.is_backtrack for sf in related_subflows):
+							backtrack_updated_subflows_by_subflow_ids[updated_subflow.subflowID()].append(updated_subflow)
+						else:
+							raise Exception('Unexpected is_backtrack flag')
+					else:
+						# Remove all other related subflows, by simply replacing the list with a list with just this subflow
+						current_subflows_by_subflow_id[updated_subflow.subflowID()] = [updated_subflow]
 
 			# Removes any subflows that have finished from current_subflows_by_subflow_id and places adds them to completed_subflows
 			for fin_subflow in finished_subflows:
-				current_subflows_by_subflow_id[fin_subflow.subflowID()].remove(fin_subflow)
+				if fin_subflow.is_backtrack:
+					if backtrack and fin_subflow.subflowID() in backtrack_updated_subflows_by_subflow_ids and fin_subflow in backtrack_updated_subflows_by_subflow_ids[fin_subflow.subflowID()]:
+						backtrack_finished_subflows_by_subflow_ids[fin_subflow.subflowID()].append(fin_subflow)
+					else:
+						raise Exception('Quit')
+				else:
+					current_subflows_by_subflow_id[fin_subflow.subflowID()].remove(fin_subflow)
 
-				if len(current_subflows_by_subflow_id[fin_subflow.subflowID()]) == 0:
-					del current_subflows_by_subflow_id[fin_subflow.subflowID()]
+					if len(current_subflows_by_subflow_id[fin_subflow.subflowID()]) == 0:
+						del current_subflows_by_subflow_id[fin_subflow.subflowID()]
 
-				completed_subflows.append(fin_subflow)
+					completed_subflows.append(fin_subflow)
 
 			# Adds any sublfows that were split to current_subflows_by_subflow_id
 			for new_subflow in new_subflows:
-				current_subflows_by_subflow_id[new_subflow.subflowID()].append(new_subflow)
-			
+				if new_subflow.is_backtrack:
+					if not backtrack or new_subflow.parent_subflow is None:
+						raise Exception('NOOOOOOOOOOOOOO')
+					backtrack_new_subflows_by_subflow_ids[new_subflow.parent_subflow.subflowID()].append(new_subflow)
 
+				else:
+					current_subflows_by_subflow_id[new_subflow.subflowID()].append(new_subflow)
+
+					# If the split subflow is still at the beginning then we still need to consider all routes
+					if consider_all_routes and len(new_subflow.route) == len(new_subflow.rem_route) and all(a == b for a, b in zip(new_subflow.route, new_subflow.rem_route)):
+						this_subflow_id = new_subflow.subflowID()
+						
+						for other_route in new_subflow.flow.all_routes:
+							if len(other_route) == len(new_subflow.route) and all(a == b for a, b in zip(other_route, new_subflow.route)):
+								continue
+
+							other_subflow = SubFlow(flow = new_subflow.flow, override_subflow_id = this_subflow_id, override_route = other_route, override_size = new_subflow.getSize(), tag = str(len(other_route) - 1) + '-hop')
+				
+							current_subflows_by_subflow_id[other_subflow.subflowID()].append(other_subflow)
+
+		if backtrack:
+			Profiler.start('computeSchedule-process_backtrack')
+			for sf_id in backtrack_updated_subflows_by_subflow_ids:
+				# Figure out the six subflows
+				updated_subflows  = backtrack_updated_subflows_by_subflow_ids[sf_id]
+				finished_subflows = backtrack_finished_subflows_by_subflow_ids[sf_id]
+				new_subflows      = backtrack_new_subflows_by_subflow_ids[sf_id]
+				old_subflows      = current_subflows_by_subflow_id[sf_id]
+
+				backtrack_updated = None
+				backtrack_split   = None
+				backtrack_old     = None
+				regular_updated   = None
+				regular_split     = None
+				regular_old       = None
+
+				if len(finished_subflows) > 1:
+					raise Exception('Error with backtracking')
+
+				if len(finished_subflows) == 1:
+					backtrack_updated = finished_subflows[0]
+					finished_subflows.remove(backtrack_updated)
+					updated_subflows.remove(backtrack_updated)
+
+				if len(updated_subflows) > 1:
+					raise Exception('Error with backtracking')
+
+				if len(updated_subflows) == 1:
+					regular_updated = updated_subflows[0]
+					updated_subflows.remove(regular_updated)
+
+				if len(updated_subflows) != 0 or len(finished_subflows) != 0:
+					raise Exception('Error with backtracking')
+
+				if backtrack_updated is None and regular_updated is None:
+					raise Exception('What is even happening')
+
+				if backtrack_updated is not None and regular_updated is None:
+					if len(new_subflows) > 1:
+						raise Exception('Error with backtracking')
+
+					if len(new_subflows) == 1:
+						backtrack_split = new_subflows[0]
+						new_subflows.remove(backtrack_split)
+
+				if backtrack_updated is None and regular_updated is not None:
+					if len(new_subflows) > 1:
+						raise Exception('Error with backtracking')
+
+					if len(new_subflows) == 1:
+						regular_split = new_subflows[0]
+						new_subflows.remove(regular_split)
+
+				if backtrack_updated is not None and regular_updated is not None:
+					if len(new_subflows) > 2:
+						raise Exception('Error with backtracking')
+
+					if len(new_subflows[0].route) - 1 == 1 and (len(new_subflows) == 1 or len(new_subflows[1].route) - 1 > 1):
+						backtrack_split = new_subflows[0]
+						if len(new_subflows) == 2:
+							regular_split   = new_subflows[1]
+
+					elif len(new_subflows[0].route) - 1 > 1 and (len(new_subflows) == 1 or len(new_subflows[1].route) - 1 == 1):
+						regular_split   = new_subflows[0]
+						if len(new_subflows) == 2:
+							backtrack_split = new_subflows[1]
+					else:
+						raise Exception('Error with backtracking')
+
+					if backtrack_split is not None:
+						new_subflows.remove(backtrack_split)
+
+					if regular_split is not None:
+						new_subflows.remove(regular_split)
+
+				if len(old_subflows) != 2:
+					raise Exception('Error with backtracking')
+
+				if len(old_subflows[0].route) - 1 == 1 and len(old_subflows[1].route) - 1 > 1:
+					backtrack_old = old_subflows[0]
+					regular_old   = old_subflows[1]
+
+				elif  len(old_subflows[0].route) - 1 > 1 and len(old_subflows[1].route) - 1 == 1:
+					regular_old   = old_subflows[0]
+					backtrack_old = old_subflows[1]
+				else:
+					raise Exception('Error with backtracking')
+
+				is_none = [v is None for v in [backtrack_updated, backtrack_split, regular_updated, regular_split]]
+
+				# TODO update is_backtrack
+
+				if all(a == b for a, b in zip(is_none, [True,  True,  True,  True])):
+					raise Exception('Error with backtracking')
+				if all(a == b for a, b in zip(is_none, [False, True,  True,  True])):
+					# In this case all packets are delivered via the backtrack route, so we can just abandon the other route
+					del current_subflows_by_subflow_id[backtrack_updated.subflowID()]
+
+					completed_subflows.append(backtrack_updated)
+
+					backtrack_updated.is_backtrack = False
+
+				if all(a == b for a, b in zip(is_none, [True,  False, True,  True])):
+					raise Exception('Error with backtracking')
+				if all(a == b for a, b in zip(is_none, [False, False, True,  True])):
+					# In this case part of the backtrack flow finished.
+					# Mark that subflow finished
+					current_subflows_by_subflow_id[backtrack_updated.subflowID()].remove(backtrack_updated)
+
+					completed_subflows.append(backtrack_updated)
+
+					# Change backtrack_split's subflow_id to match regular_old
+					backtrack_split.subflow_id = regular_old.subflowID()
+					current_subflows_by_subflow_id[backtrack_split.subflowID()].append(backtrack_split)
+
+					# Change regular_old's size to match backtrack_split
+					regular_old.size = backtrack_split.getSize()
+
+					backtrack_updated.is_backtrack = False
+
+				if all(a == b for a, b in zip(is_none, [True,  True,  False, True])):
+					# All packets were sent via the regular route, we can just abandon the backtrack route
+					current_subflows_by_subflow_id[regular_updated.subflowID()] = [regular_updated]
+
+					regular_updated.is_backtrack = False
+
+				if all(a == b for a, b in zip(is_none, [False, True,  False, True])):
+					# All packets sent via both the backtrack and regular route, ignore the regular route
+					del current_subflows_by_subflow_id[backtrack_updated.subflowID()]
+
+					completed_subflows.append(backtrack_updated)
+
+					backtrack_updated.is_backtrack = False
+					regular_updated.is_backtrack = False
+
+				if all(a == b for a, b in zip(is_none, [True,  False, False, True])):
+					raise Exception('Error with backtracking')
+				if all(a == b for a, b in zip(is_none, [False, False, False, True])):
+					# Some packets sent via backtrack route, but all sent via regular.
+					# Packets sent via backtrack finish, and rest are set to the regular route.
+					# Can just abandon backtrack_split
+					current_subflows_by_subflow_id[backtrack_updated.subflowID()].remove(backtrack_updated)
+					completed_subflows.append(backtrack_updated)
+
+					regular_updated.size = backtrack_split.getSize()
+
+					regular_updated.is_backtrack = False
+					backtrack_split.is_backtrack = False
+					backtrack_updated.is_backtrack = False
+
+				if all(a == b for a, b in zip(is_none, [True,  True,  True,  False])):
+					raise Exception('Error with backtracking')
+				if all(a == b for a, b in zip(is_none, [False, True,  True,  False])):
+					raise Exception('Error with backtracking')
+				if all(a == b for a, b in zip(is_none, [True,  False, True,  False])):
+					raise Exception('Error with backtracking')
+				if all(a == b for a, b in zip(is_none, [False, False, True,  False])):
+					raise Exception('Error with backtracking')
+				if all(a == b for a, b in zip(is_none, [True,  True,  False, False])):
+					# Some packets sent via regular. Just discard backtrack_old. Regular backtrack code will add appropriate flows as needed.
+					current_subflows_by_subflow_id[backtrack_old.subflowID()].remove(backtrack_old)
+					current_subflows_by_subflow_id[regular_split.subflowID()].append(regular_split)
+
+					regular_split.is_backtrack = False
+					regular_updated.is_backtrack = False
+
+				if all(a == b for a, b in zip(is_none, [False, True,  False, False])):
+					# All packets delivered via backtracking, so can discard everything else
+					current_subflows_by_subflow_id[regular_updated.subflowID()].remove(regular_updated)
+
+					current_subflows_by_subflow_id[backtrack_updated.subflowID()].remove(backtrack_updated)
+					completed_subflows.append(backtrack_updated)
+
+					backtrack_updated.is_backtrack = False
+					regular_split.is_backtrack = False
+					regular_updated.is_backtrack = False
+
+				if all(a == b for a, b in zip(is_none, [True,  False, False, False])):
+					raise Exception('Error with backtracking')
+				if all(a == b for a, b in zip(is_none, [False, False, False, False])):
+					if regular_split.getSize() + regular_updated.getSize() != backtrack_split.getSize() + backtrack_updated.getSize():
+						raise Exception('Error with backtracking')
+
+					backtrack_split.is_backtrack = False
+
+					# Backtrack route takes first priority
+					current_subflows_by_subflow_id[backtrack_updated.subflowID()].remove(backtrack_updated)
+
+					backtrack_updated.is_backtrack = False
+					completed_subflows.append(backtrack_updated)
+
+					# If possible take delivered packets away from regular_split
+					if regular_split.getSize() - backtrack_updated.getSize() > 0:
+						regular_split.size = regular_split.getSize() - backtrack_updated.getSize()
+
+						current_subflows_by_subflow_id[regular_split.subflowID()].append(regular_split)
+
+						regular_split.is_backtrack = False
+						regular_updated.is_backtrack = False
+					else:
+						regular_updated.size -= backtrack_updated.getSize() - regular_split.getSize()
+
+						regular_updated.is_backtrack = False
+			Profiler.end('computeSchedule-process_backtrack')
 		Profiler.end('computeSchedule-updateAllSubflows')
 		Profiler.end('computeSchedule-iteration')
 
 	# Compute result metrics
 	total_objective_value = schedule.getTotalMatchingWeight()
 
-	packets_delivered = sum(subflow.getSize() for subflow in completed_subflows)
+	if flows_have_given_invweight:
+		total_packets = sum(flow.size for _, (flow, _) in flows.iteritems())
+	else:
+		total_packets = sum(flow.size for _, flow in flows.iteritems())
 
-	packets_delivered_by_tag = defaultdict(lambda: 0)
-	for subflow in completed_subflows:
-		if subflow.tag is not None:
-			packets_delivered_by_tag[subflow.tag] += subflow.getSize()
 
-	# If subflows are tagged, then all subflows should be tagged, and then the sum of packets delivered to each tag should equal the total number of packets delivered
-	if len(packets_delivered_by_tag) > 0 and packets_delivered != sum(packets for _, packets in packets_delivered_by_tag.iteritems()):
-		raise Exception('Delivered tagged packets do not equal total number of packets delivered')
+	if upper_bound:
 
-	# All subflows with the same subflow ID represent one undelivered subflow. All of these subflows should have the same size, and there should be no empty lists.
-	for _, subflows in current_subflows_by_subflow_id.iteritems():
-		if len(subflows) == 0:
-			raise Exception('Still have a subflow list with no subflows')
+		completed_subflows_by_flow_id = {flow.id: (flow, []) for _, flow in flows.iteritems()}
+		for fin_subflow in completed_subflows:
+			completed_subflows_by_flow_id[fin_subflow.flowID()][1].append(fin_subflow)
 
-		if any(subflow.getSize() != subflows[0].getSize() for subflow in subflows):
-			raise Exception('Some subflows with the same ID don\'t have the same size')
+		packets_delivered = 0
+		packets_not_delivered = 0
+		for _, (flow, fin_subflows) in completed_subflows_by_flow_id.iteritems():
+			packets_delivered_by_route = {(flow.route[i], flow.route[i + 1]): 0 for i in range(len(flow.route) - 1)}
+			for fin_subflow in fin_subflows:
+				packets_delivered_by_route[tuple(fin_subflow.route)] += fin_subflow.getSize()
 
-	packets_not_delivered = sum(subflows[0].getSize() for _, subflows in current_subflows_by_subflow_id.iteritems())
+			this_packets_delivered = min(packets for _, packets in packets_delivered_by_route.iteritems())
+
+			packets_delivered     += this_packets_delivered
+			packets_not_delivered += flow.size - this_packets_delivered
+
+		packets_delivered_by_tag = None
+	else:
+		packets_delivered = sum(subflow.getSize() for subflow in completed_subflows)
+
+		packets_delivered_by_tag = defaultdict(lambda: 0)
+		for subflow in completed_subflows:
+			if subflow.tag is not None:
+				packets_delivered_by_tag[subflow.tag] += subflow.getSize()
+
+		# If subflows are tagged, then all subflows should be tagged, and then the sum of packets delivered to each tag should equal the total number of packets delivered
+		if len(packets_delivered_by_tag) > 0 and packets_delivered != sum(packets for _, packets in packets_delivered_by_tag.iteritems()):
+			raise Exception('Delivered tagged packets do not equal total number of packets delivered')
+
+		# All subflows with the same subflow ID represent one undelivered subflow. All of these subflows should have the same size, and there should be no empty lists.
+		for _, subflows in current_subflows_by_subflow_id.iteritems():
+			if len(subflows) == 0:
+				raise Exception('Still have a subflow list with no subflows')
+
+			if any(subflow.getSize() != subflows[0].getSize() for subflow in subflows):
+				raise Exception('Some subflows with the same ID don\'t have the same size')
+
+		packets_not_delivered = sum(subflows[0].getSize() for _, subflows in current_subflows_by_subflow_id.iteritems())
+
+	if total_packets != packets_delivered + packets_not_delivered:
+		raise Exception('Not all packets accounted for: total_packets = ' + str(total_packets) + ', packets_delivered = ' + str(packets_delivered) + ', packets_not_delivered = ' + str(packets_not_delivered))
 
 	# Add in reconfiguration delay to unused time slots
 	time_slots_not_used += reconfig_delta * num_nodes * schedule.numReconfigs()
@@ -717,9 +1058,17 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, return_comple
 	rvs = [schedule, result_metric]
 
 	# If requested, returns the set of flow_ids that were completed
-	if return_completed_flow_ids:
-		finished_flow_ids = [subflow.flowID() for subflow in completed_subflows]
-		rvs.append(finished_flow_ids)
+	if return_packets_delivered_by_flow_id:
+		# TODO Really need to return the number of packets delivered for each flowID. This is to handle split subflows
+		if flows_have_given_invweight:
+			packets_delivered_by_flow_id = {flow.id: 0 for _, (flow, invweight) in flows.iteritems()}
+		else:
+			packets_delivered_by_flow_id = {flow.id: 0 for _, flow in flows.iteritems()}
+
+		for fin_subflow in completed_subflows:
+			packets_delivered_by_flow_id[fin_subflow.flowID()] += fin_subflow.getSize()
+
+		rvs.append(packets_delivered_by_flow_id)
 
 	Profiler.end('computeSchedule')
 	return tuple(rvs)

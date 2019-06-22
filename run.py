@@ -22,6 +22,8 @@ if __name__ == '__main__':
 	parser.add_argument('-nr', '--num_routes', metavar = 'NUM_ROUTES', type = int, nargs = 1, default = [1], help = 'Number of routes to generate')
 	parser.add_argument('-is', '--input_source', metavar = 'INPUT_SOURCE', type = str, nargs = 1, default = ['test'], help = 'Source to generate the Flows. Must be one of (' + ', '.join(INPUT_SOURCES) + ')')
 
+	parser.add_argument('-min_rl', '--min_route_length', metavar = 'MIN_ROUTE_LENGTH', type = int, nargs = 1, default = [1], help = 'Minimum route length possible')
+	
 	parser.add_argument('-m', '--methods', metavar = 'METHODS', type = str, nargs = '+', default = ['octopus-r'], help = 'Set of methods to run. Must be in the set of (' + ', '.join(METHODS) + ') or "all"')
 
 	parser.add_argument('-profile', '--profile_code', action = 'store_true', help = 'If given, then the code is profiled, and results are outputted at the end')
@@ -38,6 +40,8 @@ if __name__ == '__main__':
 	reconfig_delta   = args.reconfig_delta[0]
 	num_routes       = args.num_routes[0]
 	input_source     = args.input_source[0]
+
+	min_route_length = args.min_route_length[0]
 
 	methods = args.methods
 
@@ -76,7 +80,7 @@ if __name__ == '__main__':
 
 	# Data based on real measurements
 	if input_source in ['microsoft', 'sigmetrics', 'facebook']:
-		traffic = input_utils.Traffic(num_nodes = num_nodes, max_hop = max_route_length, window_size = window_size, num_routes = num_routes, random_seed = 0)
+		traffic = input_utils.Traffic(num_nodes = num_nodes, max_hop = max_route_length, window_size = window_size, num_routes = num_routes, min_route_length = min_route_length, random_seed = 0)
 
 	if input_source == 'microsoft':
 		flows = traffic.microsoft(1)  # cluster 1 is somewhat dense
@@ -133,6 +137,9 @@ if __name__ == '__main__':
 			print 'Invalid method:', method
 			continue
 
+		if verbose:
+			print 'Running method:', method
+
 		if method == 'octopus-r':
 			# Runs the main "vannilla" method
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, verbose = verbose)
@@ -144,10 +151,7 @@ if __name__ == '__main__':
 			schedule, result_metric = algos.computeSchedule(num_nodes, shortest_route_flows, window_size, reconfig_delta, verbose = verbose)
 
 		if method == 'upper-bound':
-			# Runs the upper-bound where all flows only have a single hop
-			single_hop_flows = benchmark_utils.reduceToOneHop(flows)
-
-			schedule, result_metric = algos.computeSchedule(num_nodes, single_hop_flows, window_size, reconfig_delta, verbose = verbose)
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound = True, verbose = verbose)
 
 		if method == 'split':
 			# Splits the window and flows into max_route_length sections
@@ -155,25 +159,24 @@ if __name__ == '__main__':
 			splits = benchmark_utils.splitWindow(window_size, number_of_splits, reconfig_delta, flows)
 
 			# Used to check if all hops of a flow are completed
-			flow_by_id = {flow.id: flow for _, flow in flows.iteritems()}
-			split_flows_completed = {flow.id: 0 for _, flow in flows.iteritems()}
+			flow_by_id                   = {flow.id: flow for _, flow in flows.iteritems()}
+			packets_delivered_by_flow_id = {flow.id: None for _, flow in flows.iteritems()}
 
 			# Holds the schedules and result_metrics from each split
 			schedules = []
 			result_metrics = []
-			x = 1
 			for this_window_size, this_flows in splits:
-				x += 1
 
 				# Runs the algorithm for one split
-				schedule, result_metric, finished_flow_ids = algos.computeSchedule(num_nodes, this_flows, this_window_size, reconfig_delta, return_completed_flow_ids = True, verbose = verbose)
+				schedule, result_metric, this_packets_delivered_by_flow_id = algos.computeSchedule(num_nodes, this_flows, this_window_size, reconfig_delta, return_packets_delivered_by_flow_id = True, flows_have_given_invweight = True, verbose = verbose)
 
 				schedules.append(schedule)
 				result_metrics.append(result_metric)
 
 				# Tracks which flows has been completed
-				for k in finished_flow_ids:
-					split_flows_completed[k] += 1
+				for k, packets_delivered in this_packets_delivered_by_flow_id.iteritems():
+					if packets_delivered_by_flow_id[k] is None or packets_delivered < packets_delivered_by_flow_id[k]:
+						packets_delivered_by_flow_id[k] = packets_delivered
 
 			# Combined the schedules into one big one
 			total_schedule = algos.combineSchedules(schedules)
@@ -184,12 +187,18 @@ if __name__ == '__main__':
 			total_packets_delivered = 0
 			total_packets_not_delivered = 0
 			for fid, flow in flow_by_id.iteritems():
-				if split_flows_completed[fid] == len(flow.route) - 1:
-					# If all splits of a flow have completed, then the overall flow was delivered
-					total_packets_delivered += flow.size
-				else:
-					# If any split of a flow was not completed, then the overall flow was not delivered
-					total_packets_not_delivered += flow.size
+				packets_delivered_for_this_flow = packets_delivered_by_flow_id[fid]
+
+				total_packets_delivered     += packets_delivered_for_this_flow
+				total_packets_not_delivered += flow.size - packets_delivered_for_this_flow
+
+				if packets_delivered_for_this_flow is None:
+					raise Exception('Flow unaccounted for')
+
+			total_packets = sum(flow.size for _, flow in flows.iteritems())
+
+			if total_packets != total_packets_delivered + total_packets_not_delivered:
+				raise Exception('Not all packets accounted for: total_packets = ' + str(total_packets) + ', packets_delivered = ' + str(packets_delivered) + ', packets_not_delivered = ' + str(packets_not_delivered))
 
 			# Calculates the time slots used and not used. Includes the reconfiguration delta between splits.
 			total_time_slots_used = sum(rm.time_slots_used for rm in result_metrics)
@@ -211,7 +220,7 @@ if __name__ == '__main__':
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, precomputed_schedule = schedule, verbose = verbose)
 
 		if method == 'octopus+':
-			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = True, verbose = verbose)
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = False, verbose = verbose)
 
 		results[method] = (schedule, result_metric)
 
@@ -226,5 +235,10 @@ if __name__ == '__main__':
 				_, result_metric = results[method]
 
 				result_metric.runnerOutput()
+
+	if verbose:
+		for method in METHODS:
+			if method in results:
+				print 'Method:', method, '--->',results[method][1]
 
 	Profiler.stats()

@@ -5,7 +5,7 @@ import tabulate
 
 METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+']
 
-def getMetric(inpt, output, metric = 'percent_objective_value'):
+def getMetric(inpt, output, metric = 'percent_packets_delivered'):
 	if metric == 'percent_packets_delivered':
 		return float(output.packets_delivered) / float(output.packets_delivered + output.packets_not_delivered) * 100.0
 
@@ -21,7 +21,7 @@ def getMetric(inpt, output, metric = 'percent_objective_value'):
 	raise Exception('Unexpected metric: ' + str(metric))
 
 if __name__ == '__main__':
-	data = runner.readDataFromFile('data/6-20/first_run.txt')
+	data = runner.readDataFromFile('data/test/test_6-21.txt')
 
 	# Reconfig Delta test
 	rd_table = {}

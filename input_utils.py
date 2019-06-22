@@ -75,7 +75,7 @@ class Flow:
 class Traffic:
     '''Traffic matrix
     '''
-    def __init__(self, num_nodes = 64, max_hop = 4, window_size = 1000, num_routes = 1, random_seed = 1, debug = False):
+    def __init__(self, num_nodes = 64, max_hop = 4, window_size = 1000, num_routes = 1, random_seed = 1, min_route_length = 1, debug = False):
         '''
         Args:
             num_nodes (int): |V|
@@ -86,6 +86,8 @@ class Traffic:
         self.flows       = {}           # {(int, int) -> Flow}
         self.window_size = window_size  # for a traffic matrix, sum of row and sum of column should be bounded by window size
         self.random_seed = random_seed
+
+        self.min_route_length = min_route_length
 
         self.num_routes = num_routes
 
@@ -146,9 +148,9 @@ class Traffic:
         ratio = max1/1.
         if ratio > 1:
             self.matrix /= ratio               # bounded to 1
-        self.matrix *= self.window_size        # scale to window size
-        self.matrix = np.array(self.matrix, dtype=int)
 
+        self.matrix *= self.window_size     # scale to window size
+        self.matrix = np.array(self.matrix, dtype=int)
 
     def sigmetrics(self, c_l=0.7, n_l=4, c_s=0.3, n_s=12):
         '''
@@ -189,7 +191,7 @@ class Traffic:
                     continue
                 # route = self.random_route(i, j)
 
-                all_routes = generateRandomRoutes(i, j, self.num_nodes, self.max_hop, self.num_routes)
+                all_routes = generateRandomRoutes(i, j, self.num_nodes, self.max_hop, self.num_routes, min_route_length = self.min_route_length)
 
                 self.flows[(i, j)] = Flow(ID, i, j, size, all_routes[0], all_routes, self.num_nodes)
                 ID += 1
@@ -369,11 +371,11 @@ def generateTestFlows(num_nodes, max_route_length, num_routes, flow_size_generat
 #   num_routes --> The number of routes to generate
 # Ouput:
 #   routes --> List of routes, guarenteed to have no duplicates, and that no routes share the same first hop
-def generateRandomRoutes(src, dst, num_nodes, max_route_length, num_routes):
+def generateRandomRoutes(src, dst, num_nodes, max_route_length, num_routes, min_route_length = 1):
 	routes = []
 
 	while len(routes) < num_routes:
-		this_route_length = random.randint(1, max_route_length)
+		this_route_length = random.randint(min_route_length, max_route_length)
 		this_route = [src, dst]
 		for x in range(this_route_length - 1):
 			# Note: this will be inefficient if max_route_length is close to num_nodes
