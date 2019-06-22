@@ -229,7 +229,7 @@ if __name__ == '__main__':
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, precomputed_schedule = schedule, verbose = verbose)
 
 		if method == 'octopus+':
-			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = True, verbose = verbose)
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = False, verbose = verbose)
 
 		results[method] = (schedule, result_metric)
 
