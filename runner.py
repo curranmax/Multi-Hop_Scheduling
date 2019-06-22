@@ -10,7 +10,7 @@ import subprocess
 # Defines default values for parameters
 DEFAULT_NUM_NODES        = 64
 DEFAULT_MAX_ROUTE_LENGTH = 3
-DEFAULT_WINDOW_SIZE      = 100
+DEFAULT_WINDOW_SIZE      = 10000
 DEFAULT_RECONFIG_DELTA   = 20
 DEFAULT_NUM_ROUTES       = 10
 DEFAULT_USE_EPS          = False
@@ -300,7 +300,7 @@ if __name__ == '__main__':
 				inputs.append(Input(num_nodes = nn))
 
 		if experiment == RECONFIG_DELTA:
-			reconfig_deltas = [100] # [5, 10, 20, 30, 40, 50]
+			reconfig_deltas = [5, 10, 20, 30, 40, 50]
 			use_epss        = [False, True]
 			input_sources   = ['sigmetrics', 'microsoft', 'facebook']
 
