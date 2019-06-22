@@ -4,10 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tabulate
 
-METHODS  = ['upper-bound', 'octopus-s', 'octopus+', 'split', 'octopus-r', 'eclipse']
-METHODS_ = ['UB',          'Oct-s',     'Oct+',     'Split', 'Oct-r',     'Eclipse']
-METRIC   = ['percent_packets_delivered', 'link_utilization']
-METRIC_  = ['% of Packets Deliverd',     '% of Link Utilization']
+METHODS  = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-s', 'octopus+']
+METHODS_ = ['Oct-r',     'UB',          'Split', 'Eclipse', 'Oct-s',     'Oct+']
+METRIC   = ['percent_packets_delivered', 'link_utilization', 'percent_objective_value']
+METRIC_  = ['% of Packets Deliverd',     '% of Link Utilization', '% of Objective Value']
 
 def getMetric(inpt, output, metric = 'percent_packets_delivered'):
 	if metric == 'percent_packets_delivered':
@@ -65,15 +65,17 @@ def plot_line(table, method, filename=None, x_label=None, y_label=None):
 
 
 if __name__ == '__main__':
-	data = runner.readDataFromFile('data/6-20/first_run.txt')
+	data = runner.readDataFromFile('data/6-21/max_cp.txt')
 
 	for i in range(0, len(METRIC)):
 		# Reconfig Delta test
 		rd_table = {}
 		for inpt, output_by_method in data:
 			if inpt.num_nodes == 64:
-				rd_table[inpt.reconfig_delta] = {method: getMetric(inpt, output, metric=METRIC[i]) for method, output in output_by_method.iteritems()}
+				rd_table[(inpt.reconfig_delta, inpt.use_eps, inpt.input_source)] = {method: getMetric(inpt, output, metric=METRIC[i]) for method, output in output_by_method.iteritems()}
 
-		print_table = [[rd] + [(vals_by_method[method] if method in vals_by_method else None) for method in METHODS] for rd, vals_by_method in sorted(rd_table.iteritems())]
-		print tabulate.tabulate(print_table, headers = ['RD'] + METHODS)
-		plot_line(print_table, METHODS_, filename='{}-{}'.format(METRIC[i], 'vary_reconfig'), x_label='Reconfiguration Delay', y_label=METRIC_[i])
+		print_table = [list(vs) + [(vals_by_method[method] if method in vals_by_method else None) for method in METHODS] for vs, vals_by_method in sorted(rd_table.iteritems(), key = lambda x: (x[0][2], x[0][1], x[0][0]))]
+		print METRIC[i]
+		print tabulate.tabulate(print_table, headers = ['RD', 'EPS', 'Input Source'] + METHODS)
+		print ''
+		# plot_line(print_table, METHODS_, filename='{}-{}'.format(METRIC[i], 'vary_reconfig'), x_label='Reconfiguration Delay', y_label=METRIC_[i])
