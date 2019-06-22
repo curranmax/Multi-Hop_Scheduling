@@ -5,6 +5,8 @@ from datetime import datetime
 import os
 import subprocess
 
+# python runner.py -exp num_nodes reconfig_delta -out OUT_FILE -nt 10
+
 # Defines default values for parameters
 DEFAULT_NUM_NODES        = 64
 DEFAULT_MAX_ROUTE_LENGTH = 3

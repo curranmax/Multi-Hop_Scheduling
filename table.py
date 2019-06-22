@@ -4,9 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tabulate
 
-METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+']
-METRIC  = ['percent_packets_delivered', 'link_utilization',      'objective_value', 'percent_objective_value']
-METRIC_ = ['% of Packets Deliverd',     '% of Link Utilization', 'Objective Value', '% of Objectetive Value']
+METHODS  = ['upper-bound', 'octopus-s', 'octopus+', 'split', 'octopus-r', 'eclipse']
+METHODS_ = ['UB',          'Oct-s',     'Oct+',     'Split', 'Oct-r',     'Eclipse']
+METRIC   = ['percent_packets_delivered', 'link_utilization']
+METRIC_  = ['% of Packets Deliverd',     '% of Link Utilization']
 
 def getMetric(inpt, output, metric = 'percent_objective_value'):
 	if metric == 'percent_packets_delivered':
@@ -31,8 +32,12 @@ def plot_line(table, method, filename=None, x_label=None, y_label=None):
 	'''
 	markers    = ['o', 'h', 's', '^', 'D', 'P']     # markers
 	linestyles = ['-', '--', '-', ':', '--', '-.']  # line styles
-	plt.rcParams['font.size'] = 40
-	fig, ax = plt.subplots(figsize=(18, 15))
+	plt.rcParams['font.size'] = 60
+	plt.rcParams['font.weight'] = 'bold'
+	plt.rcParams['axes.labelweight'] = 'bold'
+	plt.rcParams['lines.linewidth'] = 7
+	fig, ax = plt.subplots(figsize=(16, 16))
+	fig.subplots_adjust(left=0.2, right=0.99, top=0.8, bottom=0.15)
 	X  = [row[0] for row in table]
 	num = len(table[0]) - 1                         # number of methods
 	Y = []
@@ -40,14 +45,13 @@ def plot_line(table, method, filename=None, x_label=None, y_label=None):
 		y = [row[i] for row in table]
 		Y.append(y)
 	for i in range(0, num):
-		plt.plot(X, Y[i], linestyle=linestyles[i], linewidth=4, marker=markers[i], markersize=8, label=method[i])
+		plt.plot(X, Y[i], linestyle=linestyles[i], marker=markers[i], markersize=10, label=method[i])
 
 	plt.xticks(X)
-	y_min = np.min(np.min(table, 0)[1:])*0.9
-	y_max = np.max(np.max(table, 0)[1:])
-	y_max = 101 if y_max <= 100 else y_max*1.02
+	y_min = np.min(np.min(table, 0)[1:]) - 5
+	y_max = 101
 	plt.ylim([y_min, y_max])
-	plt.legend(bbox_to_anchor=(0., 1.), loc='lower left', ncol=3, fontsize=30)
+	plt.legend(bbox_to_anchor=(-0.1, 1), loc='lower left', ncol=3, fontsize=40)
 
 	if x_label:
 		ax.set_xlabel(x_label)
@@ -73,4 +77,4 @@ if __name__ == '__main__':
 
 		print_table = [[rd] + [(vals_by_method[method] if method in vals_by_method else None) for method in METHODS] for rd, vals_by_method in sorted(rd_table.iteritems())]
 		print tabulate.tabulate(print_table, headers = ['RD'] + METHODS)
-		plot_line(print_table, METHODS, filename='{}-{}'.format(METRIC[i], 'vary_reconfig'), x_label='Reconfiguration Delay', y_label=METRIC_[i])
+		plot_line(print_table, METHODS_, filename='{}-{}'.format(METRIC[i], 'vary_reconfig'), x_label='Reconfiguration Delay', y_label=METRIC_[i])
