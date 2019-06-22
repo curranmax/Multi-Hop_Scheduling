@@ -24,6 +24,8 @@ if __name__ == '__main__':
 
 	parser.add_argument('-min_rl', '--min_route_length', metavar = 'MIN_ROUTE_LENGTH', type = int, nargs = 1, default = [1], help = 'Minimum route length possible')
 	
+	parser.add_argument('-eps', '--use_eps', metavar = 'TRUE_FALSE', type = bool, nargs = 1, default = [False], help = 'Whether to use epsilon trick')
+
 	parser.add_argument('-m', '--methods', metavar = 'METHODS', type = str, nargs = '+', default = ['octopus-r'], help = 'Set of methods to run. Must be in the set of (' + ', '.join(METHODS) + ') or "all"')
 
 	parser.add_argument('-profile', '--profile_code', action = 'store_true', help = 'If given, then the code is profiled, and results are outputted at the end')
@@ -40,6 +42,9 @@ if __name__ == '__main__':
 	reconfig_delta   = args.reconfig_delta[0]
 	num_routes       = args.num_routes[0]
 	input_source     = args.input_source[0]
+
+	use_eps = args.use_eps[0]
+	algos.setUseEps(use_eps)
 
 	min_route_length = args.min_route_length[0]
 
@@ -66,6 +71,7 @@ if __name__ == '__main__':
 		print 'window_size|'      + str(window_size)
 		print 'reconfig_delta|'   + str(reconfig_delta)
 		print 'num_routes|'       + str(num_routes)
+		print 'use_eps|'          + str(use_eps)
 		print 'input_source|'     + str(input_source)
 
 		print 'methods|' + ','.join(methods)
@@ -220,7 +226,7 @@ if __name__ == '__main__':
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, precomputed_schedule = schedule, verbose = verbose)
 
 		if method == 'octopus+':
-			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = False, verbose = verbose)
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = True, verbose = verbose)
 
 		results[method] = (schedule, result_metric)
 
