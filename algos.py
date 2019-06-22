@@ -10,7 +10,14 @@ import scipy.optimize as scipy_opt
 # MAX_WEIGHT_MATCHING_LIBRARY = 'networkx'
 MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
 
-EPS = 0.01
+EPS = 0.0
+def setUseEps(use_eps):
+	global EPS
+
+	if use_eps:
+		EPS = 0.01
+	else:
+		EPS = 0.0
 
 # Holds a multi-hop schedule
 class Schedule:

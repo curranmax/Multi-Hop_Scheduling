@@ -13,6 +13,7 @@ DEFAULT_MAX_ROUTE_LENGTH = 3
 DEFAULT_WINDOW_SIZE      = 10000
 DEFAULT_RECONFIG_DELTA   = 20
 DEFAULT_NUM_ROUTES       = 10
+DEFAULT_USE_EPS          = False
 DEFAULT_INPUT_SOURCE     = 'sigmetrics'
 DEFAULT_METHODS          = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+']
 
@@ -22,6 +23,7 @@ class Input:
 						window_size      = DEFAULT_WINDOW_SIZE,
 						reconfig_delta   = DEFAULT_RECONFIG_DELTA,
 						num_routes       = DEFAULT_NUM_ROUTES,
+						use_eps          = DEFAULT_USE_EPS,
 						input_source     = DEFAULT_INPUT_SOURCE,
 						methods          = DEFAULT_METHODS):
 
@@ -30,6 +32,7 @@ class Input:
 		self.window_size      = int(window_size)
 		self.reconfig_delta   = int(reconfig_delta)
 		self.num_routes       = int(num_routes)
+		self.use_eps          = bool(use_eps)
 		self.input_source     = str(input_source)
 
 		if isinstance(methods, list):
@@ -54,6 +57,9 @@ class Input:
 		if self.num_routes != DEFAULT_NUM_ROUTES:
 			vals.append(('Num Routes', self.num_routes))
 
+		if self.use_eps != DEFAULT_USE_EPS:
+			vals.append(('Use EPS', self.use_eps))
+
 		if self.input_source != DEFAULT_INPUT_SOURCE:
 			vals.append(('Input Source', self.input_source))
 
@@ -71,6 +77,7 @@ class Input:
 				['-ws', self.window_size] + \
 				['-rd', self.reconfig_delta] + \
 				['-nr', self.num_routes] + \
+				['-eps', self.use_eps] + \
 				['-is', self.input_source] + \
 				['-m'] + self.methods + \
 				['-runner']
@@ -83,6 +90,7 @@ class Input:
 				('window_size',      self.window_size),
 				('reconfig_delta',   self.reconfig_delta),
 				('num_routes',       self.num_routes),
+				('use_eps',          self.use_eps),
 				('input_source',     self.input_source),
 				('methods',          ','.join(map(str, self.methods)))]
 
@@ -106,6 +114,7 @@ class Input:
 				self.window_size      == inpt.window_size and \
 				self.reconfig_delta   == inpt.reconfig_delta and \
 				self.num_routes       == inpt.num_routes and \
+				self.use_eps          == inpt.use_eps and \
 				self.input_source     == inpt.input_source
 
 class Output:
@@ -281,9 +290,13 @@ if __name__ == '__main__':
 
 		if experiment == RECONFIG_DELTA:
 			reconfig_deltas = [5, 10, 20, 30, 40, 50]
+			use_epss        = [False, True]
+			input_sources   = ['sigmetrics', 'microsoft', 'facebook']
 
-			for rd in reconfig_deltas:
-				inputs.append(Input(reconfig_delta = rd))
+			for input_source in input_sources:
+				for use_eps in use_epss:
+					for rd in reconfig_deltas:
+						inputs.append(Input(reconfig_delta = rd, use_eps = use_eps, input_source = input_source))
 
 		if experiment == SPARSITY:
 			raise Exception('Not implemented yet')
