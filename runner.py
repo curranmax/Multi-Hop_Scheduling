@@ -10,7 +10,7 @@ import subprocess
 # Defines default values for parameters
 DEFAULT_NUM_NODES        = 64
 DEFAULT_MAX_ROUTE_LENGTH = 3
-DEFAULT_WINDOW_SIZE      = 10000
+DEFAULT_WINDOW_SIZE      = 100
 DEFAULT_RECONFIG_DELTA   = 20
 DEFAULT_NUM_ROUTES       = 10
 DEFAULT_USE_EPS          = False
@@ -32,7 +32,7 @@ class Input:
 		self.window_size      = int(window_size)
 		self.reconfig_delta   = int(reconfig_delta)
 		self.num_routes       = int(num_routes)
-		self.use_eps          = bool(use_eps)
+		self.use_eps          = convertToBool(use_eps)
 		self.input_source     = str(input_source)
 
 		if isinstance(methods, list):
@@ -156,6 +156,13 @@ class Output:
 
 		return ', '.join(map(lambda x: x[0] + ' --> ' + str(x[1]), str_vals))
 
+def convertToBool(val):
+	if isinstance(val, bool):
+		return val
+	if isinstance(val, str):
+		return val in ['True', 'true', 'T', 't']
+	raise Exception('Invalid bool value: ' + str(val))
+
 def getInputAndOutput(vals):
 	input_vals  = vals[:vals.index('OUTPUT')]
 	output_vals = vals[vals.index('OUTPUT') + 1:]
@@ -210,6 +217,8 @@ def runAllTests(inputs, num_tests, out_file):
 			print 'Running test with params', inpt.niceOutput()
 			print 'Start time:                 ', datetime.now().strftime('%A %I:%M %p')
 
+			print ' '.join(args)
+
 			p = subprocess.Popen(args, stdout = subprocess.PIPE)
 			p.wait()
 
@@ -220,6 +229,8 @@ def runAllTests(inputs, num_tests, out_file):
 			check_inpt, output_by_method = getInputAndOutput(vals)
 
 			if not check_inpt.equals(inpt):
+				print check_inpt
+				print inpt
 				raise Exception('Input doesn\'t match')
 			
 			appendToFile(out_file, inpt, output_by_method)
@@ -289,7 +300,7 @@ if __name__ == '__main__':
 				inputs.append(Input(num_nodes = nn))
 
 		if experiment == RECONFIG_DELTA:
-			reconfig_deltas = [5, 10, 20, 30, 40, 50]
+			reconfig_deltas = [100] # [5, 10, 20, 30, 40, 50]
 			use_epss        = [False, True]
 			input_sources   = ['sigmetrics', 'microsoft', 'facebook']
 

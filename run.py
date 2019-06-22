@@ -12,6 +12,9 @@ METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus
 
 # python run.py -nn 100 -rl 4 -ws 100 -rd 1 -is sigmetrics -profile
 
+def boolFromStr(val):
+	return val in ['True', 'true', 't', 'T']
+
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = 'Creates a multi-hop schedule for a dynamic network')
 
@@ -24,7 +27,7 @@ if __name__ == '__main__':
 
 	parser.add_argument('-min_rl', '--min_route_length', metavar = 'MIN_ROUTE_LENGTH', type = int, nargs = 1, default = [1], help = 'Minimum route length possible')
 	
-	parser.add_argument('-eps', '--use_eps', metavar = 'TRUE_FALSE', type = bool, nargs = 1, default = [False], help = 'Whether to use epsilon trick')
+	parser.add_argument('-eps', '--use_eps', metavar = 'TRUE_FALSE', type = boolFromStr, nargs = 1, default = [False], help = 'Whether to use epsilon trick')
 
 	parser.add_argument('-m', '--methods', metavar = 'METHODS', type = str, nargs = '+', default = ['octopus-r'], help = 'Set of methods to run. Must be in the set of (' + ', '.join(METHODS) + ') or "all"')
 
