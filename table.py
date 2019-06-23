@@ -78,4 +78,4 @@ if __name__ == '__main__':
 		print METRIC[i]
 		print tabulate.tabulate(print_table, headers = ['RD', 'EPS', 'Input Source'] + METHODS)
 		print ''
-		# plot_line(print_table, METHODS_, filename='{}-{}'.format(METRIC[i], 'vary_reconfig'), x_label='Reconfiguration Delay', y_label=METRIC_[i])
+		#plot_line(print_table, METHODS_, filename='{}-{}'.format(METRIC[i], 'vary_reconfig'), x_label='Reconfiguration Delay', y_label=METRIC_[i])
