@@ -5,7 +5,6 @@ from datetime import datetime
 import os
 import subprocess
 
-# python runner.py -exp num_nodes reconfig_delta -out OUT_FILE -nt 10
 
 # Defines default values for parameters
 DEFAULT_NUM_NODES        = 64
@@ -17,6 +16,10 @@ DEFAULT_NUM_ROUTES       = 10
 DEFAULT_USE_EPS          = False
 DEFAULT_INPUT_SOURCE     = 'sigmetrics'
 DEFAULT_METHODS          = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+', 'octopus-e']
+DEFAULT_NL               = 4    # number of large flows   (for sigmetrics only)
+DEFAULT_NS               = 12   # number of small flows   (for sigmetrics only)
+DEFAULT_CL               = 0.7  # capacity of large flows (for sigmetrics only)
+DEFAULT_CS               = 0.3  # capacity of small flows (for sigmetrics only)
 
 class Input:
 	def __init__(self, num_nodes         = DEFAULT_NUM_NODES,
@@ -27,7 +30,11 @@ class Input:
 						num_routes       = DEFAULT_NUM_ROUTES,
 						use_eps          = DEFAULT_USE_EPS,
 						input_source     = DEFAULT_INPUT_SOURCE,
-						methods          = DEFAULT_METHODS):
+						methods          = DEFAULT_METHODS,
+						nl               = DEFAULT_NL,
+						ns               = DEFAULT_NS,
+						cl               = DEFAULT_CL,
+						cs               = DEFAULT_CS):
 
 		self.num_nodes        = int(num_nodes)
 		self.min_route_length = int(min_route_length)
@@ -37,6 +44,10 @@ class Input:
 		self.num_routes       = int(num_routes)
 		self.use_eps          = convertToBool(use_eps)
 		self.input_source     = str(input_source)
+		self.nl               = int(nl)
+		self.ns               = int(ns)
+		self.cl               = float(cl)
+		self.cs               = float(cs)
 
 		if isinstance(methods, list):
 			self.methods = methods
@@ -68,6 +79,18 @@ class Input:
 
 		if self.input_source != DEFAULT_INPUT_SOURCE:
 			vals.append(('Input Source', self.input_source))
+		
+		if self.nl != DEFAULT_NL:
+			vals.append(('Num Large flows', self.nl))
+		
+		if self.ns != DEFAULT_NS:
+			vals.append(('Num Small flows', self.ns))
+		
+		if self.cl != DEFAULT_CL:
+			vals.append(('Capacity of Large flows', self.cl))
+		
+		if self.cs != DEFAULT_CS:
+			vals.append(('Capacity of Small flows', self.cs))
 
 		# TODO include methods
 
@@ -85,7 +108,11 @@ class Input:
 				['-rd', self.reconfig_delta] + \
 				['-nr', self.num_routes] + \
 				['-eps', self.use_eps] + \
-				['-is', self.input_source] + \
+				['-is',  self.input_source] + \
+				['-nl',  self.nl] + \
+				['-ns',  self.ns] + \
+				['-cl',  self.cl] + \
+				['-cs',  self.cs] + \
 				['-m'] + self.methods + \
 				['-runner']
 
@@ -100,6 +127,10 @@ class Input:
 				('num_routes',       self.num_routes),
 				('use_eps',          self.use_eps),
 				('input_source',     self.input_source),
+				('nl',               self.nl),
+				('ns',               self.ns),
+				('cl',               self.cl),
+				('cs',               self.cs),
 				('methods',          ','.join(map(str, self.methods)))]
 
 	def __str__(self):
@@ -124,7 +155,11 @@ class Input:
 				self.reconfig_delta   == inpt.reconfig_delta and \
 				self.num_routes       == inpt.num_routes and \
 				self.use_eps          == inpt.use_eps and \
-				self.input_source     == inpt.input_source
+				self.input_source     == inpt.input_source and \
+				self.nl         	  == inpt.nl and \
+				self.ns         	  == inpt.ns and \
+				self.cl         	  == inpt.cl and \
+				self.cs         	  == inpt.cs
 
 class Output:
 	def __init__(self, total_objective_value = None,
@@ -273,6 +308,8 @@ TEST = 'test'
 
 EXPERIMENTS = [NUM_NODES, RECONFIG_DELTA, SPARSITY, SKEWNESS, TEST]
 
+# python runner.py -exp reconfig_delta -nt NUM_TEST -out FILE
+
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = 'Runs multiple iterations of run.py and saves results to a file')
 
@@ -301,19 +338,17 @@ if __name__ == '__main__':
 		if experiment == TEST:
 			inputs.append(Input())
 
-		elif experiment == NUM_NODES:
-			# Note that traffic generation parameters are made to match size automatically
-			num_nodes     = [50, 100, 200]
-			input_sources = ['sigmetrics', 'microsoft', 'facebook']
-			methods       = ['octopus-r', 'upper-bound', 'split', 'eclipse']
-
-			for input_source in input_sources:
-				for nn in num_nodes:
-					inputs.append(Input(num_nodes = nn, input_source = input_source))
+		if experiment == NUM_NODES:
+			num_nodes = [25, 50, 100, 150, 200, 250, 300]
+			num_large = [1,  2,  4,   6,   8,   10,  12]
+			num_small = [3,  6,  12,  18,  24,  30,  36]
+			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse']
+			
+			for nn, nl, ns in zip(num_nodes, num_large, num_small):
+				inputs.append(Input(num_nodes = nn, nl = nl, ns = ns, methods = methods))
 
 		elif experiment == RECONFIG_DELTA:
-			reconfig_deltas = [5, 10, 20, 30, 40, 50]
-			input_sources   = ['sigmetrics', 'microsoft', 'facebook']
+			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 			methods         = ['octopus-r', 'upper-bound', 'split', 'eclipse']
 
 			for input_source in input_sources:

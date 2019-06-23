@@ -10,7 +10,6 @@ import random
 INPUT_SOURCES = ['test', 'microsoft', 'sigmetrics', 'facebook']
 METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+', 'octopus-e']
 
-# python run.py -nn 100 -rl 4 -ws 100 -rd 1 -is sigmetrics -profile
 
 def boolFromStr(val):
 	return val in ['True', 'true', 't', 'T']
@@ -35,6 +34,10 @@ if __name__ == '__main__':
 	parser.add_argument('-v', '--verbose', action = 'store_true', help = 'If given, then outputs intermediate updates')
 	parser.add_argument('-runner', '--runner_output', action = 'store_true', help = 'If given, outputs results appropriate for runner.py')
 	
+	parser.add_argument('-nl', '--num_large',  type=int, nargs = 1,   default=[4], help='For the sigmetric data only. Number of large flows. Indicates sparsity')
+	parser.add_argument('-ns', '--num_small',  type=int, nargs = 1,   default=[12], help='For the sigmetric data only. Number of small flows. Indicates sparsity')
+	parser.add_argument('-cl', '--capa_large', type=float, nargs = 1, default=[0.7], help='For the sigmetric data only. Capacity of large flows. Indicates skewness')
+	parser.add_argument('-cs', '--capa_small', type=float, nargs = 1, default=[0.3], help='For the sigmetric data only. Capacity of small flows. Indicates skewness')
 
 	args = parser.parse_args()
 
@@ -45,6 +48,10 @@ if __name__ == '__main__':
 	reconfig_delta   = args.reconfig_delta[0]
 	num_routes       = args.num_routes[0]
 	input_source     = args.input_source[0]
+	num_large        = args.num_large[0]
+	num_small        = args.num_small[0]
+	capa_large       = args.capa_large[0]
+	capa_small       = args.capa_small[0]
 
 	use_eps = args.use_eps[0]
 	algos.setUseEps(use_eps)
@@ -76,6 +83,10 @@ if __name__ == '__main__':
 		print 'num_routes|'       + str(num_routes)
 		print 'use_eps|'          + str(use_eps)
 		print 'input_source|'     + str(input_source)
+		print 'nl|'               + str(num_large)
+		print 'ns|'               + str(num_small)
+		print 'cl|'               + str(capa_large)
+		print 'cs|'               + str(capa_small)
 
 		print 'methods|' + ','.join(methods)
 
@@ -108,26 +119,8 @@ if __name__ == '__main__':
 		# print(traffic)
 
 	if input_source == 'sigmetrics':
-		args = None
-		if num_nodes in [50, 64, 100]:
-			args = {'c_l': 0.7, 'n_l': 4, 'c_s': 0.3, 'n_s': 12}
+		args = {'c_l': capa_large, 'n_l': num_large, 'c_s': capa_small, 'n_s': num_small}
 
-		if num_nodes == 200:
-			args = {'c_l': 0.7, 'n_l': 8, 'c_s': 0.3, 'n_s': 24}
-
-		if num_nodes == 300:
-			args = {'c_l': 0.7, 'n_l': 12, 'c_s': 0.3, 'n_s': 36}
-
-		if num_nodes == 400:
-			args = {'c_l': 0.7, 'n_l': 16, 'c_s': 0.3, 'n_s': 48}
-
-		if num_nodes == 500:
-			args = {'c_l': 0.7, 'n_l': 20, 'c_s': 0.3, 'n_s': 60}
-
-		if args is None:
-			raise Exception('Invalid number of nodes used with "sigmetrics" data')
-
-		# TODO adjust these parameters if # of nodes increases to 200, 300, 400, and 500
 		flows = traffic.sigmetrics(**args)
 		# for k in flows:
 		# 	print(flows[k])
