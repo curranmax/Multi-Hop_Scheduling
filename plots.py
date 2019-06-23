@@ -6,10 +6,6 @@ import tabulate
 
 from runner import DEFAULT_WINDOW_SIZE
 
-METHODS  = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-s', 'octopus+']
-METRIC   = ['percent_packets_delivered', 'link_utilization', 'percent_objective_value']
-METHODS_ = ['Oct-r',     'UB',          'Split', 'Eclipse', 'Oct-s',     'Oct+']
-METRIC_  = ['% of Packets Deliverd',     '% of Link Utilization', '% of Objective Value']
 
 def getMetric(inpt, output, metric = 'percent_packets_delivered'):
 	if metric == 'percent_packets_delivered':
@@ -252,8 +248,25 @@ def plot4(path):
 
 
 def plot5(path):
-	pass
+	# python runner.py -exp eps -nt 3 -out data/6-22/5.txt
+	filename = '{}/5.txt'
+	data = runner.readDataFromFile(filename.format(path))
 
+	methods  = ['octopus-e', 'octopus-r', 'upper-bound']
+	methods_ = ['Oct-e', 'Oct-r', 'UB']
+	metrics   = ['percent_packets_delivered']
+	metrics_  = ['% of Packets Deliverd']
+
+	for metric, metric_ in zip(metrics, metrics_):
+		table = {}
+		for inpt, output_by_method in data:
+			table[(inpt.min_route_length)] = {method: getMetric(inpt, output, metric=metric) for method, output in output_by_method.iteritems()}
+		
+		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
+		print metric
+		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
+		print ''
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, 'Octopus', 'vary_hop_count'), x_label='Varying ave. hop count', y_label=metric_)
 
 
 if __name__ == '__main__':
@@ -270,7 +283,7 @@ if __name__ == '__main__':
 	# plot1_2(path)
 	# plot1_3(path)
 	# plot1_4(path)
-	plot2(path)
+	# plot2(path)
 	# plot3(path)
 	# plot4(path)
-	# plot5(path)
+	plot5(path)

@@ -359,7 +359,7 @@ SKEWNESS       = 'skewness'        # 1.3
 SPARSITY       = 'sparsity'        # 1.4
 REAL_TRAFFIC   = 'real_traffic'    # 2
 OCTOPUS        = 'octopus'         # 4 (the second 3 in the document)
-EPS_TEST       = 'eps'
+EPS_TEST       = 'eps'             # 5 (the 4 in the document)
 
 TEST = 'test'
 
