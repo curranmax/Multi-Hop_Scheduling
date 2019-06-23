@@ -393,7 +393,7 @@ if __name__ == '__main__':
 			route_lengths = [1, 2, 3]
 
 			for route_length in route_lengths:
-				inputs.append(Input(min_route_length = route_length, max_route_length = route_length, methods = methods))
+				inputs.append(Input(min_route_length = route_length, max_route_length = route_length, num_routes = 1, methods = methods))
 
 		elif experiment == REAL_TRAFFIC:
 			methods = ['octopus-r', 'upper-bound', 'split', 'eclipse']
