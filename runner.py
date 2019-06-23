@@ -340,7 +340,10 @@ def runAllTestsInParallel(inputs, num_tests, out_file, num_cores = 1, wait_time 
 # Output:
 #   tests --> List of 2-tuples (Input, {method_str: Output}). Each value is the input given to run.py and the output for each method
 def readDataFromFile(filename):
-	f = open(filename, 'r')
+	try:
+		f = open(filename, 'r')
+	except IOError:
+		return []
 
 	tests = []
 	for line in f:
