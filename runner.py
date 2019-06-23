@@ -272,12 +272,15 @@ def runAllTests(inputs, num_tests, out_file):
 
 			print ' '.join(args)
 
-			p = subprocess.Popen(args, stdout = subprocess.PIPE)
+			p = subprocess.Popen(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 			p.wait()
 
 			vals = []
 			for line in p.stdout:
 				vals.append(line.strip())
+
+			for line in p.stderr:
+				print 'STDERR:', line.strip()
 
 			check_inpt, output_by_method = getInputAndOutput(vals)
 
@@ -372,16 +375,18 @@ if __name__ == '__main__':
 		elif experiment == SPARSITY:
 			num_large = [1, 2, 3, 4,  5,  6,  7,  8]
 			num_small = [3, 6, 9, 12, 15, 18, 21, 24]
+			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse']
 
 			for nl, ns in zip(num_large, num_small):
-				inputs.append(Input(nl=nl, ns=ns))
+				inputs.append(Input(nl = nl, ns = ns, methods = methods))
 	
 		elif experiment == SKEWNESS:
 			capa_large = [0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25]
 			capa_small = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75]
+			methods    = ['octopus-r', 'upper-bound', 'split', 'eclipse']
 
 			for cl, cs in zip(capa_large, capa_small):
-				inputs.append(Input(cl=cl, cs=cs))
+				inputs.append(Input(cl = cl, cs = cs, methods = methods))
 
 		elif experiment == EPS_TEST:
 			methods       = ['upper-bound', 'octopus-r', 'octopus-e']
@@ -397,14 +402,14 @@ if __name__ == '__main__':
 
 			for source in input_source:
 				for clus in cluster:
-					inputs.append(Input(input_source=source, cluster=clus, methods=methods))
+					inputs.append(Input(input_source = source, cluster = clus, methods = methods))
 
 		elif experiment == OCTOPUS:
 			methods = ['octopus+', 'octopus-r']
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 
 			for rd in reconfig_deltas:
-				inputs.append(Input(reconfig_delta=rd, methods=methods))
+				inputs.append(Input(reconfig_delta = rd, methods = methods))
 		
 		else:
 			raise Exception('Unexpected experiment: ' + str(experiment))
