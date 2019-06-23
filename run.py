@@ -221,7 +221,7 @@ if __name__ == '__main__':
 		if method == 'octopus-e':
 			orig_eps = algos.setUseEps(True)
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, verbose = verbose)
-			setUseEps(orig_eps)
+			algos.setUseEps(orig_eps)
 
 		results[method] = (schedule, result_metric)
 
