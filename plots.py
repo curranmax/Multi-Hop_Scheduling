@@ -166,7 +166,13 @@ def plot1_4(path):
 
 def plot2(path):
 	# python runner.py -exp real_traffic -nt 3 -out data/6-22/2.txt  (somehow three experiments are getting the same results, random seed. but how the experiments in 1.* worked?)
-	pass
+	filename = '{}/2.txt'
+	data = runner.readDataFromFile(filename.format(path))
+	methods  = ['octopus-r', 'upper-bound', 'split', 'eclipse']
+	methods_ = ['Oct-r',     'UB',          'Split', 'Eclipse']
+	metric   = ['percent_packets_delivered']
+	metric_  = ['% of Packets Deliverd']
+
 
 def plot3(path):
 	# the data comes from python runner.py -exp reconfig_delta -nt 3 -out data/6-22/1.2.txt
@@ -222,6 +228,6 @@ if __name__ == '__main__':
 	# plot1_2(path)
 	# plot1_3(path)
 	# plot1_4(path)
-	# plot2(path)
+	plot2(path)
 	# plot3(path)
-	plot4(path)
+	# plot4(path)

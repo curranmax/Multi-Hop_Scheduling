@@ -393,7 +393,7 @@ if __name__ == '__main__':
 
 		elif experiment == EPS_TEST:
 			methods       = ['upper-bound', 'octopus-r', 'octopus-e']
-			route_lengths = [1, 2, 3]
+			route_lengths = [2, 3]
 
 			for route_length in route_lengths:
 				inputs.append(Input(min_route_length = route_length, max_route_length = route_length, num_routes = 1, methods = methods))
