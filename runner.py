@@ -20,6 +20,7 @@ DEFAULT_NL               = 4    # number of large flows   (for sigmetrics only)
 DEFAULT_NS               = 12   # number of small flows   (for sigmetrics only)
 DEFAULT_CL               = 0.7  # capacity of large flows (for sigmetrics only)
 DEFAULT_CS               = 0.3  # capacity of small flows (for sigmetrics only)
+DEFAULT_CLUSTER          = 1    # cluster number (for Facebook and Microsoft only)
 
 class Input:
 	def __init__(self, num_nodes         = DEFAULT_NUM_NODES,
@@ -34,7 +35,8 @@ class Input:
 						nl               = DEFAULT_NL,
 						ns               = DEFAULT_NS,
 						cl               = DEFAULT_CL,
-						cs               = DEFAULT_CS):
+						cs               = DEFAULT_CS,
+						cluster          = DEFAULT_CLUSTER):
 
 		self.num_nodes        = int(num_nodes)
 		self.min_route_length = int(min_route_length)
@@ -48,6 +50,7 @@ class Input:
 		self.ns               = int(ns)
 		self.cl               = float(cl)
 		self.cs               = float(cs)
+		self.cluster          = int(cluster)
 
 		if isinstance(methods, list):
 			self.methods = methods
@@ -91,6 +94,9 @@ class Input:
 		
 		if self.cs != DEFAULT_CS:
 			vals.append(('Capacity of Small flows', self.cs))
+		
+		if self.cluster != DEFAULT_CLUSTER:
+			vals.append(('Default cluster', self.cluster))
 
 		# TODO include methods
 
@@ -113,6 +119,7 @@ class Input:
 				['-ns',  self.ns] + \
 				['-cl',  self.cl] + \
 				['-cs',  self.cs] + \
+				['-clus', self.cluster] + \
 				['-m'] + self.methods + \
 				['-runner']
 
@@ -131,6 +138,7 @@ class Input:
 				('ns',               self.ns),
 				('cl',               self.cl),
 				('cs',               self.cs),
+				('cluster',          self.cluster),
 				('methods',          ','.join(map(str, self.methods)))]
 
 	def __str__(self):
@@ -159,7 +167,8 @@ class Input:
 				self.nl         	  == inpt.nl and \
 				self.ns         	  == inpt.ns and \
 				self.cl         	  == inpt.cl and \
-				self.cs         	  == inpt.cs
+				self.cs         	  == inpt.cs and \
+				self.cluster          == inpt.cluster
 
 class Output:
 	def __init__(self, total_objective_value = None,
@@ -298,10 +307,12 @@ def readDataFromFile(filename):
 	return tests
 
 # Experiment strings
-NUM_NODES      = 'num_nodes'
-RECONFIG_DELTA = 'reconfig_delta'
-SPARSITY       = 'sparsity'
-SKEWNESS       = 'skewness'
+NUM_NODES      = 'num_nodes'       # 1.1
+RECONFIG_DELTA = 'reconfig_delta'  # 1.2
+SKEWNESS       = 'skewness'        # 1.3
+SPARSITY       = 'sparsity'        # 1.4
+REAL_TRAFFIC   = 'real_traffic'    # 2
+OCTOPUS        = 'octopus'         # 4 (the second 3 in the document)
 EPS_TEST       = 'eps'
 
 TEST = 'test'
@@ -354,25 +365,43 @@ if __name__ == '__main__':
 			for rd in reconfig_deltas:
 				inputs.append(Input(reconfig_delta = rd, methods = methods))
 
-		if experiment == SPARSITY:
+		elif experiment == SPARSITY:
 			num_large = [1, 2, 3, 4,  5,  6,  7,  8]
 			num_small = [3, 6, 9, 12, 15, 18, 21, 24]
-			for i in range(len(num_large)):
-				inputs.append(Input(nl=num_large[i], ns=num_small[i]))
+
+			for nl, ns in zip(num_large, num_small):
+				inputs.append(Input(nl=nl, ns=ns))
 	
-		if experiment == SKEWNESS:
+		elif experiment == SKEWNESS:
 			capa_large = [0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25]
 			capa_small = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75]
-			for i in range(len(capa_large)):
-				inputs.append(Input(cl=capa_large[i], cs=capa_small[i]))
+
+			for cl, cs in zip(capa_large, capa_small):
+				inputs.append(Input(cl=cl, cs=cs))
 
 		elif experiment == EPS_TEST:
-			methods           = ['octopus-r', 'octopus-e']
+			methods       = ['upper-bound', 'octopus-r', 'octopus-e']
 			route_lengths = [1, 2, 3]
 
 			for route_length in route_lengths:
 				inputs.append(Input(min_route_length = route_length, max_route_length = route_length, methods = methods))
 
+		elif experiment == REAL_TRAFFIC:
+			methods = ['octopus-r', 'upper-bound', 'split', 'eclipse']
+			input_source = ['microsoft', 'facebook']
+			cluster = ['1', '2', '3']
+
+			for source in input_source:
+				for clus in cluster:
+					inputs.append(Input(input_source=source, cluster=clus, methods=methods))
+
+		elif experiment == OCTOPUS:
+			methods = ['octopus+', 'octopus-r']
+			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
+
+			for rd in reconfig_deltas:
+				inputs.append(Input(reconfig_delta=rd, methods=methods))
+		
 		else:
 			raise Exception('Unexpected experiment: ' + str(experiment))
 

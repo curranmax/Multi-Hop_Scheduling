@@ -34,11 +34,12 @@ if __name__ == '__main__':
 	parser.add_argument('-v', '--verbose', action = 'store_true', help = 'If given, then outputs intermediate updates')
 	parser.add_argument('-runner', '--runner_output', action = 'store_true', help = 'If given, outputs results appropriate for runner.py')
 	
-	parser.add_argument('-nl', '--num_large',  type=int, nargs = 1,   default=[4], help='For the sigmetric data only. Number of large flows. Indicates sparsity')
-	parser.add_argument('-ns', '--num_small',  type=int, nargs = 1,   default=[12], help='For the sigmetric data only. Number of small flows. Indicates sparsity')
+	parser.add_argument('-nl', '--num_large',  type=int, nargs = 1,   default=[4],   help='For the sigmetric data only. Number of large flows. Indicates sparsity')
+	parser.add_argument('-ns', '--num_small',  type=int, nargs = 1,   default=[12],  help='For the sigmetric data only. Number of small flows. Indicates sparsity')
 	parser.add_argument('-cl', '--capa_large', type=float, nargs = 1, default=[0.7], help='For the sigmetric data only. Capacity of large flows. Indicates skewness')
 	parser.add_argument('-cs', '--capa_small', type=float, nargs = 1, default=[0.3], help='For the sigmetric data only. Capacity of small flows. Indicates skewness')
-
+	parser.add_argument('-clus', '--cluster',  type=int,   nargs = 1, default=[1],   help='For Microsoft and Facebook only. Cluster number')
+	
 	args = parser.parse_args()
 
 	# Get command line args
@@ -52,6 +53,7 @@ if __name__ == '__main__':
 	num_small        = args.num_small[0]
 	capa_large       = args.capa_large[0]
 	capa_small       = args.capa_small[0]
+	cluster          = args.cluster[0]
 
 	use_eps = args.use_eps[0]
 	algos.setUseEps(use_eps)
@@ -87,6 +89,7 @@ if __name__ == '__main__':
 		print 'ns|'               + str(num_small)
 		print 'cl|'               + str(capa_large)
 		print 'cs|'               + str(capa_small)
+		print 'cluster|'          + str(cluster)
 
 		print 'methods|' + ','.join(methods)
 
@@ -102,22 +105,6 @@ if __name__ == '__main__':
 	if input_source in ['microsoft', 'sigmetrics', 'facebook']:
 		traffic = input_utils.Traffic(num_nodes = num_nodes, max_hop = max_route_length, window_size = window_size, num_routes = num_routes, min_route_length = min_route_length, random_seed = 0)
 
-	if input_source == 'microsoft':
-		flows = traffic.microsoft(1)  # cluster 1 is somewhat dense
-		# for k in flows:
-		# 	print(flows[k])
-		# print(traffic)
-
-		# flows = traffic.microsoft(2)  # cluster 2 is between 1 and 3
-		# for k in flows:
-		# 	print(flows[k])
-		# print(traffic)
-
-		# flows = traffic.microsoft(3)  # cluster 3 is sparse (many zeros)
-		# for k in flows:
-		# 	print(flows[k])
-		# print(traffic)
-
 	if input_source == 'sigmetrics':
 		args = {'c_l': capa_large, 'n_l': num_large, 'c_s': capa_small, 'n_s': num_small}
 
@@ -125,9 +112,16 @@ if __name__ == '__main__':
 		# for k in flows:
 		# 	print(flows[k])
 		# print(traffic)
+
+	if input_source == 'microsoft':
+		flows = traffic.microsoft(cluster)  # cluster 1 is somewhat dense
+		# for k in flows:
+		# 	print(flows[k])
+		# print(traffic)
 	
 	if input_source == 'facebook':
-		flows = traffic.facebook(cluster='A')
+		mydic = {1:'A', 2:'B', 3:'C'}
+		flows = traffic.facebook(cluster=mydic[cluster])
 		# for k in flows:
 		# 	print(flows[k])
 		# print(traffic)
