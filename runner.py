@@ -306,7 +306,7 @@ EPS_TEST       = 'eps'
 
 TEST = 'test'
 
-EXPERIMENTS = [NUM_NODES, RECONFIG_DELTA, SPARSITY, SKEWNESS, TEST]
+EXPERIMENTS = [NUM_NODES, RECONFIG_DELTA, SPARSITY, SKEWNESS, EPS_TEST, TEST]
 
 # python runner.py -exp reconfig_delta -nt NUM_TEST -out FILE
 
@@ -351,9 +351,8 @@ if __name__ == '__main__':
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 			methods         = ['octopus-r', 'upper-bound', 'split', 'eclipse']
 
-			for input_source in input_sources:
-				for rd in reconfig_deltas:
-					inputs.append(Input(reconfig_delta = rd, input_source = input_source, methods = methods))
+			for rd in reconfig_deltas:
+				inputs.append(Input(reconfig_delta = rd, methods = methods))
 
 		elif experiment == SPARSITY:
 			raise Exception('Not implemented yet')
