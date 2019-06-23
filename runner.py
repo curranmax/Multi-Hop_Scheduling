@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime
 import os
 import subprocess
+import time
 
 
 # Defines default values for parameters
@@ -262,6 +263,30 @@ def appendToFile(out_file, inpt, output_by_method):
 
 	f.close()
 
+def getDataFromProcess(proc, inpt, out_file):
+	vals = []
+	for line in proc.stdout:
+		vals.append(line.strip())
+
+	for line in proc.stderr:
+		print 'STDERR:', line.strip()
+
+	try:
+		check_inpt, output_by_method = getInputAndOutput(vals)
+	except Exception as e:
+		print e
+
+		print 'Error parsing values:', vals
+		return
+
+	if not check_inpt.equals(inpt):
+		print 'Input doesn\'t match:'
+		print 'Given: ', inpt
+		print 'Parsed:', check_inpt
+		return
+	
+	appendToFile(out_file, inpt, output_by_method)
+
 def runAllTests(inputs, num_tests, out_file):
 	for nt in range(num_tests):
 		for inpt in inputs:
@@ -270,26 +295,44 @@ def runAllTests(inputs, num_tests, out_file):
 			print 'Running test with params', inpt.niceOutput()
 			print 'Start time:                 ', datetime.now().strftime('%A %I:%M %p')
 
-			print ' '.join(args)
-
 			p = subprocess.Popen(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 			p.wait()
 
-			vals = []
-			for line in p.stdout:
-				vals.append(line.strip())
+			getDataFromProcess(p, inpt, out_file)
 
-			for line in p.stderr:
-				print 'STDERR:', line.strip()
+def runAllTestsInParallel(inputs, num_tests, out_file, num_cores = 1, wait_time = 30):
+	ps = []
+	for nt in range(num_tests):
+		for inpt in inputs:
+			# Starts a test
+			args = ['python', 'run.py'] + inpt.getArgs()
 
-			check_inpt, output_by_method = getInputAndOutput(vals)
+			print 'Running test with params', inpt.niceOutput()
+			print 'Start time:                 ', datetime.now().strftime('%A %I:%M %p')
 
-			if not check_inpt.equals(inpt):
-				print check_inpt
-				print inpt
-				raise Exception('Input doesn\'t match')
-			
-			appendToFile(out_file, inpt, output_by_method)
+			p = subprocess.Popen(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+			ps.append((p, inpt))
+
+			# Waits until there are free cores available to run more tests
+			while len(ps) >= num_cores:
+				new_ps = []
+				for p, inpt in ps:
+					if p.poll() is not None:
+						getDataFromProcess(p, inpt, out_file)
+					else:
+						new_ps.append((p, inpt))
+				ps = new_ps
+				time.sleep(wait_time)
+
+	while len(ps) > 0:
+		new_ps = []
+		for p, inpt in ps:
+			if p.poll() is not None:
+				getDataFromProcess(p, inpt, out_file)
+			else:
+				new_ps.append((p, inpt))
+		ps = new_ps
+		time.sleep(wait_time)
 
 # Gets all test inputs and outputs saved to a file
 # Input:
@@ -320,7 +363,7 @@ EPS_TEST       = 'eps'
 
 TEST = 'test'
 
-EXPERIMENTS = [NUM_NODES, RECONFIG_DELTA, SPARSITY, SKEWNESS, EPS_TEST, TEST]
+EXPERIMENTS = [NUM_NODES, RECONFIG_DELTA, SPARSITY, SKEWNESS, EPS_TEST, REAL_TRAFFIC, OCTOPUS, TEST]
 
 # python runner.py -exp reconfig_delta -nt NUM_TEST -out FILE
 
@@ -330,6 +373,9 @@ if __name__ == '__main__':
 	parser.add_argument('-exp', '--experiments', metavar = 'EXPERIMENT', type = str, nargs = '+', default = [], help = 'List of experiments to run. Must be one of (' + ', '.join(EXPERIMENTS) + ')')
 	parser.add_argument('-nt', '--num_tests', metavar = 'NUM_TESTS', type = int, nargs = 1, default = [1], help = 'Number of times to run each set of input')
 
+	parser.add_argument('-nc', '--num_cores', metavar = 'NUM_CORES', type = int, nargs = 1, default = [None], help = 'Number of cores to run tests on')
+	parser.add_argument('-wt', '--wait_time', metavar = 'WAIT_TIME', type = int, nargs = 1, default = [30], help = 'Number of seconds to wait between polling the status of parallel processes')
+
 	parser.add_argument('-out', '--out_file', metavar = 'OUT_FILE', type = str, nargs = 1, default = [''], help = 'File to output the results to')
 
 
@@ -337,6 +383,10 @@ if __name__ == '__main__':
 
 	experiments = args.experiments
 	num_tests   = args.num_tests[0]
+
+	num_cores = args.num_cores[0]
+	wait_time = args.wait_time[0]
+
 	out_file    = args.out_file[0]
 
 	if len(experiments) == 0:
@@ -350,7 +400,7 @@ if __name__ == '__main__':
 	inputs = []
 	for experiment in experiments:
 		if experiment == TEST:
-			inputs.append(Input())
+			inputs.append(Input(window_size = 100))
 
 		if experiment == NUM_NODES:
 			num_nodes = [25, 50, 75, 100, 125, 150]
@@ -412,4 +462,7 @@ if __name__ == '__main__':
 		else:
 			raise Exception('Unexpected experiment: ' + str(experiment))
 
-	runAllTests(inputs, num_tests, out_file)
+	if num_cores is None or num_cores <= 0:
+		runAllTests(inputs, num_tests, out_file)
+	else:
+		runAllTestsInParallel(inputs, num_tests, out_file, num_cores = num_cores, wait_time = wait_time)
