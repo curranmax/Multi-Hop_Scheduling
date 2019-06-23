@@ -219,7 +219,7 @@ if __name__ == '__main__':
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = False, verbose = verbose)
 
 		if method == 'octopus-e':
-			orig_eps = setUseEps(True)
+			orig_eps = algos.setUseEps(True)
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, verbose = verbose)
 			setUseEps(orig_eps)
 
