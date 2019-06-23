@@ -350,9 +350,15 @@ if __name__ == '__main__':
 						inputs.append(Input(reconfig_delta = rd, use_eps = use_eps, input_source = input_source))
 
 		if experiment == SPARSITY:
-			raise Exception('Not implemented yet')
+			num_large = [1, 2, 3, 4,  5,  6,  7,  8]
+			num_small = [3, 6, 9, 12, 15, 18, 21, 24]
+			for i in range(len(num_large)):
+				inputs.append(Input(nl=num_large[i], ns=num_small[i]))
 	
 		if experiment == SKEWNESS:
-			raise Exception('Not implemented yet')
+			capa_large = [0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25]
+			capa_small = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75]
+			for i in range(len(capa_large)):
+				inputs.append(Input(cl=capa_large[i], cs=capa_small[i]))
 
 	runAllTests(inputs, num_tests, out_file)
