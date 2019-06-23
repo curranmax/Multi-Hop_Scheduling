@@ -310,8 +310,6 @@ def runAllTestsInParallel(inputs, num_tests, out_file, num_cores = 1, wait_time 
 			print 'Running test with params', inpt.niceOutput()
 			print 'Start time:                 ', datetime.now().strftime('%A %I:%M %p')
 
-			print ' '.join(args)
-
 			p = subprocess.Popen(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 			ps.append((p, inpt))
 
