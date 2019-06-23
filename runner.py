@@ -350,9 +350,13 @@ if __name__ == '__main__':
 			inputs.append(Input())
 
 		if experiment == NUM_NODES:
-			num_nodes = [25, 50, 100, 150, 200, 250, 300]
-			num_large = [1,  2,  4,   6,   8,   10,  12]
-			num_small = [3,  6,  12,  18,  24,  30,  36]
+			# num_nodes = [25, 50, 100, 150, 200, 250, 300]
+			# num_large = [1,  2,  4,   6,   8,   10,  12]
+			# num_small = [3,  6,  12,  18,  24,  30,  36]
+			num_nodes = [75, 125]
+			num_large = [3,  5]
+			num_small = [9, 15]
+			
 			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse']
 			
 			for nn, nl, ns in zip(num_nodes, num_large, num_small):
