@@ -8,7 +8,7 @@ import argparse
 import random
 
 INPUT_SOURCES = ['test', 'microsoft', 'sigmetrics', 'facebook']
-METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+']
+METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+', 'octopus-e']
 
 
 def boolFromStr(val):
@@ -223,6 +223,11 @@ if __name__ == '__main__':
 
 		if method == 'octopus+':
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, consider_all_routes = True, backtrack = False, verbose = verbose)
+
+		if method == 'octopus-e':
+			orig_eps = setUseEps(True)
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, verbose = verbose)
+			setUseEps(orig_eps)
 
 		results[method] = (schedule, result_metric)
 

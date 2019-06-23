@@ -20,7 +20,7 @@ def getMetric(inpt, output, metric = 'percent_packets_delivered'):
 		return output.total_objective_value
 
 	if metric == 'percent_objective_value':
-		return output.total_objective_value / float(inpt.window_size) / float(inpt.num_nodes) * 100.0
+		return output.total_objective_value / float(output.packets_delivered + output.packets_not_delivered)  * 100.0
 
 	raise Exception('Unexpected metric: ' + str(metric))
 

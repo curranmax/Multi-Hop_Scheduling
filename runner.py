@@ -8,14 +8,14 @@ import subprocess
 
 # Defines default values for parameters
 DEFAULT_NUM_NODES        = 64
+DEFAULT_MIN_ROUTE_LENGTH = 1
 DEFAULT_MAX_ROUTE_LENGTH = 3
 DEFAULT_WINDOW_SIZE      = 10000
 DEFAULT_RECONFIG_DELTA   = 20
 DEFAULT_NUM_ROUTES       = 10
 DEFAULT_USE_EPS          = False
 DEFAULT_INPUT_SOURCE     = 'sigmetrics'
-#DEFAULT_METHODS          = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+']
-DEFAULT_METHODS          = ['octopus-r', 'upper-bound', 'split', 'eclipse']
+DEFAULT_METHODS          = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+', 'octopus-e']
 DEFAULT_NL               = 4    # number of large flows   (for sigmetrics only)
 DEFAULT_NS               = 12   # number of small flows   (for sigmetrics only)
 DEFAULT_CL               = 0.7  # capacity of large flows (for sigmetrics only)
@@ -23,6 +23,7 @@ DEFAULT_CS               = 0.3  # capacity of small flows (for sigmetrics only)
 
 class Input:
 	def __init__(self, num_nodes         = DEFAULT_NUM_NODES,
+						min_route_length = DEFAULT_MIN_ROUTE_LENGTH,
 						max_route_length = DEFAULT_MAX_ROUTE_LENGTH,
 						window_size      = DEFAULT_WINDOW_SIZE,
 						reconfig_delta   = DEFAULT_RECONFIG_DELTA,
@@ -36,6 +37,7 @@ class Input:
 						cs               = DEFAULT_CS):
 
 		self.num_nodes        = int(num_nodes)
+		self.min_route_length = int(min_route_length)
 		self.max_route_length = int(max_route_length)
 		self.window_size      = int(window_size)
 		self.reconfig_delta   = int(reconfig_delta)
@@ -57,8 +59,11 @@ class Input:
 		if self.num_nodes != DEFAULT_NUM_NODES:
 			vals.append(('Num nodes', self.num_nodes))
 
+		if self.min_route_length != DEFAULT_MIN_ROUTE_LENGTH:
+			vals.append(('Min Route Length', self.min_route_length))
+
 		if self.max_route_length != DEFAULT_MAX_ROUTE_LENGTH:
-			vals.append(('Route Length', self.max_route_length))
+			vals.append(('Max Route Length', self.max_route_length))
 
 		if self.window_size != DEFAULT_WINDOW_SIZE:
 			vals.append(('Window Size', self.window_size))
@@ -97,6 +102,7 @@ class Input:
 
 	def getArgs(self):
 		args = ['-nn', self.num_nodes] + \
+				['-min_rl', self.min_route_length] + \
 				['-rl', self.max_route_length] + \
 				['-ws', self.window_size] + \
 				['-rd', self.reconfig_delta] + \
@@ -114,6 +120,7 @@ class Input:
 
 	def strVals(self):
 		return [('num_nodes',        self.num_nodes),
+				('min_route_length', self.min_route_length),
 				('max_route_length', self.max_route_length),
 				('window_size',      self.window_size),
 				('reconfig_delta',   self.reconfig_delta),
@@ -142,6 +149,7 @@ class Input:
 			return False
 
 		return self.num_nodes         == inpt.num_nodes and \
+				self.min_route_length == inpt.min_route_length and \
 				self.max_route_length == inpt.max_route_length and \
 				self.window_size      == inpt.window_size and \
 				self.reconfig_delta   == inpt.reconfig_delta and \
@@ -294,10 +302,11 @@ NUM_NODES      = 'num_nodes'
 RECONFIG_DELTA = 'reconfig_delta'
 SPARSITY       = 'sparsity'
 SKEWNESS       = 'skewness'
+EPS_TEST       = 'eps'
 
 TEST = 'test'
 
-EXPERIMENTS = [NUM_NODES, RECONFIG_DELTA, SPARSITY, SKEWNESS, TEST]
+EXPERIMENTS = [NUM_NODES, RECONFIG_DELTA, SPARSITY, SKEWNESS, EPS_TEST, TEST]
 
 # python runner.py -exp reconfig_delta -nt NUM_TEST -out FILE
 
@@ -333,21 +342,17 @@ if __name__ == '__main__':
 			num_nodes = [25, 50, 100, 150, 200, 250, 300]
 			num_large = [1,  2,  4,   6,   8,   10,  12]
 			num_small = [3,  6,  12,  18,  24,  30,  36]
-
-			# Note that traffic generation parameters are made to match size automatically
+			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse']
 			
-			for i in range(len(num_nodes)):
-				inputs.append(Input(num_nodes = num_nodes[i], nl=num_large[i], ns=num_small[i]))
+			for nn, nl, ns in zip(num_nodes, num_large, num_small):
+				inputs.append(Input(num_nodes = nn, nl = nl, ns = ns, methods = methods))
 
-		if experiment == RECONFIG_DELTA:
+		elif experiment == RECONFIG_DELTA:
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
-			use_epss        = [False]#, True]
-			input_sources   = ['sigmetrics']#, 'microsoft', 'facebook']
+			methods         = ['octopus-r', 'upper-bound', 'split', 'eclipse']
 
-			for input_source in input_sources:
-				for use_eps in use_epss:
-					for rd in reconfig_deltas:
-						inputs.append(Input(reconfig_delta = rd, use_eps = use_eps, input_source = input_source))
+			for rd in reconfig_deltas:
+				inputs.append(Input(reconfig_delta = rd, methods = methods))
 
 		if experiment == SPARSITY:
 			num_large = [1, 2, 3, 4,  5,  6,  7,  8]
@@ -360,5 +365,15 @@ if __name__ == '__main__':
 			capa_small = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75]
 			for i in range(len(capa_large)):
 				inputs.append(Input(cl=capa_large[i], cs=capa_small[i]))
+
+		elif experiment == EPS_TEST:
+			methods           = ['octopus-r', 'octopus-e']
+			route_lengths = [1, 2, 3]
+
+			for route_length in route_lengths:
+				inputs.append(Input(min_route_length = route_length, max_route_length = route_length, methods = methods))
+
+		else:
+			raise Exception('Unexpected experiment: ' + str(experiment))
 
 	runAllTests(inputs, num_tests, out_file)
