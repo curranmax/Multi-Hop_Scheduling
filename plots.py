@@ -166,7 +166,13 @@ def plot1_4(path):
 
 def plot2(path):
 	# python runner.py -exp real_traffic -nt 3 -out data/6-22/2.txt  (somehow three experiments are getting the same results, random seed. but how the experiments in 1.* worked?)
-	pass
+	filename = '{}/2.txt'
+	data = runner.readDataFromFile(filename.format(path))
+	methods  = ['octopus-r', 'upper-bound', 'split', 'eclipse']
+	methods_ = ['Oct-r',     'UB',          'Split', 'Eclipse']
+	metric   = ['percent_packets_delivered']
+	metric_  = ['% of Packets Deliverd']
+
 
 def plot3(path):
 	# the data comes from python runner.py -exp reconfig_delta -nt 3 -out data/6-22/1.2.txt
@@ -193,6 +199,25 @@ def plot3(path):
 def plot4(path):
 	# python runner.py -exp octopus -nt 3 -out data/6-22/4.txt (somehow three experiments are getting the same results, random seed. but how the experiments in 1.* worked?)
 	filename = '{}/4.txt'
+	data = runner.readDataFromFile(filename.format(path))
+
+	methods  = ['octopus-r', 'octopus+']
+	methods_ = ['Oct-r',     'Oct+']
+	metric   = ['percent_packets_delivered']
+	metric_  = ['% of Packets Deliverd']
+
+	for i in range(0, len(metric)):
+		rd_table = {}
+		for inpt, output_by_method in data:
+			rd_table[(inpt.reconfig_delta)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+		
+		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(rd_table.iteritems())]
+		print metric[i]
+		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
+		print ''
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, 'Octopus', 'vary_delta'), x_label='Delta/WindowSize', x_log=True, y_label=metric_[i])
+
+
 
 def plot5(path):
 	pass
@@ -204,5 +229,5 @@ if __name__ == '__main__':
 	# plot1_3(path)
 	# plot1_4(path)
 	plot2(path)
-	plot3(path)
-	plot4(path)
+	# plot3(path)
+	# plot4(path)

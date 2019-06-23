@@ -79,6 +79,7 @@ if __name__ == '__main__':
 
 		# Outputs the other input params to stdout
 		print 'num_nodes|'        + str(num_nodes)
+		print 'min_route_length|' + str(min_route_length)
 		print 'max_route_length|' + str(max_route_length)
 		print 'window_size|'      + str(window_size)
 		print 'reconfig_delta|'   + str(reconfig_delta)
