@@ -1,10 +1,16 @@
 
 import runner
-import numpy as np
+
+from collections import defaultdict
 import matplotlib.pyplot as plt
+import numpy as np
 import tabulate
 
 from runner import DEFAULT_WINDOW_SIZE
+
+
+def average(vals):
+	return float(sum(vals)) / float(len(vals))
 
 
 def getMetric(inpt, output, metric = 'percent_packets_delivered'):
@@ -249,20 +255,22 @@ def plot4(path):
 
 def plot5(path):
 	# python runner.py -exp eps -nt 3 -out data/6-22/5.txt
-	filename = '{}/5.txt'
-	data = runner.readDataFromFile(filename.format(path))
+	filenames = ['{}/5.txt', '{}/5_2.txt']
+	data = sum((runner.readDataFromFile(filename.format(path)) for filename in filenames), [])
 
 	methods  = ['octopus-e', 'octopus-r', 'upper-bound']
 	methods_ = ['Oct-e', 'Oct-r', 'UB']
 	metrics   = ['percent_packets_delivered']
 	metrics_  = ['% of Packets Deliverd']
 
+	reduce_func = average
+
 	for metric, metric_ in zip(metrics, metrics_):
-		table = {}
+		table = defaultdict(list)
 		for inpt, output_by_method in data:
-			table[(inpt.min_route_length)] = {method: getMetric(inpt, output, metric=metric) for method, output in output_by_method.iteritems()}
+			table[(inpt.min_route_length)].append({method: getMetric(inpt, output, metric=metric) for method, output in output_by_method.iteritems()})
 		
-		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
+		print_table = [[vs] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric
 		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
 		print ''
