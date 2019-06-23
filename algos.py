@@ -13,11 +13,14 @@ MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
 EPS = 0.0
 def setUseEps(use_eps):
 	global EPS
+	rv = (EPS > 0.00001)
 
 	if use_eps:
 		EPS = 0.01
 	else:
 		EPS = 0.0
+
+	return rv
 
 # Holds a multi-hop schedule
 class Schedule:
@@ -308,7 +311,10 @@ def sortSubFlows(subflows):
 
 	# Sorts flows by shortest route to longest route. Uses flow.id as a tiebreaker in order to keep things deterministic.
 	Profiler.start('sortSubFlows')
-	subflows.sort(key = lambda x: (x.getInvweight(), x.remainingRouteLength(), x.flowID()))
+	if EPS > 0.00000000001:
+		subflows.sort(key = lambda x: (x.getInvweight(), x.remainingRouteLength(), x.flowID()))
+	else:
+		subflows.sort(key = lambda x: (x.getInvweight(), x.flowID()))
 	Profiler.end('sortSubFlows')
 
 # Given the next hop traffic, find the set of alphas to consider
