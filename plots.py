@@ -34,11 +34,7 @@ def plot_line(table, method, filename=None, x_label=None, x_log=False, y_label=N
 	'''
 	markers    = ['o', 'h', 's', '^', 'D', 'P']     # markers
 	linestyles = ['-', '--', '-', ':', '--', '-.']  # line styles
-	plt.rcParams['font.size'] = 55
-	plt.rcParams['font.weight'] = 'bold'
-	plt.rcParams['axes.labelweight'] = 'bold'
-	plt.rcParams['lines.linewidth'] = 10
-	plt.rcParams['lines.markersize'] = 15
+	
 	fig, ax = plt.subplots(figsize=(16, 16))
 	fig.subplots_adjust(left=0.16, right=0.96, top=0.85, bottom=0.15)
 	X  = [row[0] for row in table]
@@ -60,7 +56,8 @@ def plot_line(table, method, filename=None, x_label=None, x_log=False, y_label=N
 	y_max = 101
 	plt.ylim([y_min, y_max])
 	plt.legend(bbox_to_anchor=(0, 1), loc='lower left', ncol=2, fontsize=45)
-	ax.tick_params(direction='in', length=10, width=3, grid_alpha=1)
+	ax.tick_params(direction='in', length=10, width=3)
+	ax.tick_params(axis='x', pad=15)
 	if x_label:
 		ax.set_xlabel(x_label)
 	if y_label:
@@ -84,11 +81,11 @@ def plot1_1(path):
 	metric_  = ['% of Packets Deliverd',     '% of Link Utilization']
 
 	for i in range(0, len(metric)):
-		rd_table = {}
+		table = {}
 		for inpt, output_by_method in data:
-			rd_table[(inpt.num_nodes)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.num_nodes)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
 		
-		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(rd_table.iteritems())]
+		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['NUN_NODE'] + methods)
 		print ''
@@ -107,11 +104,11 @@ def plot1_2(path):
 	metric_  = ['% of Packets Deliverd',     '% of Link Utilization']
 
 	for i in range(0, len(metric)):
-		rd_table = {}
+		table = {}
 		for inpt, output_by_method in data:
-			rd_table[(inpt.reconfig_delta)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.reconfig_delta)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
 		
-		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(rd_table.iteritems())]
+		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
 		print ''
@@ -130,11 +127,11 @@ def plot1_3(path):
 	metric_  = ['% of Packets Deliverd',     '% of Link Utilization']
 
 	for i in range(0, len(metric)):
-		rd_table = {}
+		table = {}
 		for inpt, output_by_method in data:
-			rd_table[(inpt.cs)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.cs)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
 		
-		print_table = [[int(vs*100)] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(rd_table.iteritems())]
+		print_table = [[int(vs*100)] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['CS'] + methods)
 		print ''
@@ -153,11 +150,11 @@ def plot1_4(path):
 	metric_  = ['% of Packets Deliverd',     '% of Link Utilization']
 
 	for i in range(0, len(metric)):
-		rd_table = {}
+		table = {}
 		for inpt, output_by_method in data:
-			rd_table[(inpt.nl, inpt.ns)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.nl, inpt.ns)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
 		
-		print_table = [[int(vs[0])+int(vs[1])] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(rd_table.iteritems())]
+		print_table = [[int(vs[0])+int(vs[1])] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['NL+NS'] + methods)
 		print ''
@@ -169,9 +166,44 @@ def plot2(path):
 	filename = '{}/2.txt'
 	data = runner.readDataFromFile(filename.format(path))
 	methods  = ['octopus-r', 'upper-bound', 'split', 'eclipse']
-	methods_ = ['Oct-r',     'UB',          'Split', 'Eclipse']
-	metric   = ['percent_packets_delivered']
-	metric_  = ['% of Packets Deliverd']
+	metrics  = ['percent_packets_delivered']
+	metrics_ = ['% of Packets Deliverd']
+
+	for metric, metric_ in zip(metrics, metrics_):
+		table = {}
+		for inpt, output_by_method in data:
+			table[(inpt.input_source, inpt.cluster)] = {method: getMetric(inpt, output, metric=metric) for method, output in output_by_method.iteritems()}
+		
+		print_table = [list(vs) + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
+		print metric
+		print tabulate.tabulate(print_table, headers = ['SOURCE', 'CLUSTER'] + methods)
+		
+		arr = np.array(print_table)
+		oct_r = np.array(arr[:, 2], float)
+		ub    = np.array(arr[:, 3], float)
+		split = np.array(arr[:, 4], float)
+		eclip = np.array(arr[:, 5], float)
+
+		ind   = np.arange(len(oct_r))
+		width = 0.16
+		
+		fig, ax = plt.subplots(figsize=(22.2, 15))
+		fig.subplots_adjust(left=0.15, right=0.96, top=0.85, bottom=0.1)
+		pos1 = ind - width*1.5
+		pos2 = ind - width*0.5
+		pos3 = ind + width*0.5
+		pos4 = ind + width*1.5
+		ax.bar(pos1, eclip, width, edgecolor='black', label='Eclipse')
+		ax.bar(pos2, split, width, edgecolor='black', label='Split')
+		ax.bar(pos3, oct_r, width, edgecolor='black', label='Oct-r')
+		ax.bar(pos4, ub,    width, edgecolor='black', label='UB')
+		
+		plt.legend(bbox_to_anchor=(-0.02, 1), loc='lower left', ncol=4, fontsize=45)
+		ax.tick_params(axis='y', direction='in', length=10, width=3, pad=15)
+		ax.set_ylabel(metric_)
+		ax.set_xlabel('Varies Clusters')
+		plt.xticks(ind, ['FB-1', 'FB-2', 'FB-3', 'MS-1', 'MS-2', 'MS-3'], fontsize=45)
+		plt.savefig('{}/{}-real_traffic'.format(path, metric))
 
 
 def plot3(path):
@@ -185,11 +217,11 @@ def plot3(path):
 	metric_  = [ '% of Objective Value']
 
 	for i in range(0, len(metric)):
-		rd_table = {}
+		table = {}
 		for inpt, output_by_method in data:
-			rd_table[(inpt.reconfig_delta)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.reconfig_delta)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
 		
-		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(rd_table.iteritems())]
+		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
 		print ''
@@ -207,11 +239,11 @@ def plot4(path):
 	metric_  = ['% of Packets Deliverd']
 
 	for i in range(0, len(metric)):
-		rd_table = {}
+		table = {}
 		for inpt, output_by_method in data:
-			rd_table[(inpt.reconfig_delta)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.reconfig_delta)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
 		
-		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(rd_table.iteritems())]
+		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
 		print ''
@@ -222,8 +254,18 @@ def plot4(path):
 def plot5(path):
 	pass
 
+
+
 if __name__ == '__main__':
+	
+	plt.rcParams['font.size'] = 55
+	plt.rcParams['font.weight'] = 'bold'
+	plt.rcParams['axes.labelweight'] = 'bold'
+	plt.rcParams['lines.linewidth'] = 10
+	plt.rcParams['lines.markersize'] = 15
+
 	path = 'data/6-22'
+
 	# plot1_1(path)
 	# plot1_2(path)
 	# plot1_3(path)
@@ -231,3 +273,4 @@ if __name__ == '__main__':
 	plot2(path)
 	# plot3(path)
 	# plot4(path)
+	# plot5(path)

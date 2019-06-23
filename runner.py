@@ -353,12 +353,9 @@ if __name__ == '__main__':
 			inputs.append(Input())
 
 		if experiment == NUM_NODES:
-			# num_nodes = [25, 50, 100, 150, 200, 250, 300]
-			# num_large = [1,  2,  4,   6,   8,   10,  12]
-			# num_small = [3,  6,  12,  18,  24,  30,  36]
-			num_nodes = [75, 125]
-			num_large = [3,  5]
-			num_small = [9, 15]
+			num_nodes = [25, 50, 75, 100, 125, 150]
+			num_large = [1,  2,  3,  4,   5,   6 ]
+			num_small = [3,  6,  9,  12,  15,  18]
 			
 			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse']
 			
@@ -373,10 +370,8 @@ if __name__ == '__main__':
 				inputs.append(Input(reconfig_delta = rd, methods = methods))
 
 		elif experiment == SPARSITY:
-			# num_large = [1, 2, 3, 4,  5,  6,  7,  8]
-			# num_small = [3, 6, 9, 12, 15, 18, 21, 24]
-			num_large = [8]
-			num_small = [24]
+			num_large = [1, 2, 3, 4,  5,  6,  7,  8]
+			num_small = [3, 6, 9, 12, 15, 18, 21, 24]
 
 			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse']
 
@@ -393,7 +388,7 @@ if __name__ == '__main__':
 
 		elif experiment == EPS_TEST:
 			methods       = ['upper-bound', 'octopus-r', 'octopus-e']
-			route_lengths = [2, 3]
+			route_lengths = [1, 2, 3]
 
 			for route_length in route_lengths:
 				inputs.append(Input(min_route_length = route_length, max_route_length = route_length, num_routes = 1, methods = methods))
