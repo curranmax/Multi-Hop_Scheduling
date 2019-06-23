@@ -166,7 +166,7 @@ def plot1_4(path):
 
 if __name__ == '__main__':
 	path = 'data/6-22'
-	# plot1_1(path)
-	# plot1_2(path)
-	# plot1_3(path)
+	plot1_1(path)
+	plot1_2(path)
+	plot1_3(path)
 	plot1_4(path)
