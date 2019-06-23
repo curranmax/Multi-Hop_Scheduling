@@ -373,8 +373,11 @@ if __name__ == '__main__':
 				inputs.append(Input(reconfig_delta = rd, methods = methods))
 
 		elif experiment == SPARSITY:
-			num_large = [1, 2, 3, 4,  5,  6,  7,  8]
-			num_small = [3, 6, 9, 12, 15, 18, 21, 24]
+			# num_large = [1, 2, 3, 4,  5,  6,  7,  8]
+			# num_small = [3, 6, 9, 12, 15, 18, 21, 24]
+			num_large = [8]
+			num_small = [24]
+
 			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse']
 
 			for nl, ns in zip(num_large, num_small):
