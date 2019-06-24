@@ -243,6 +243,8 @@ def getInputAndOutput(vals):
 	return inpt, output_by_method
 
 def appendToFile(out_file, inpt, output_by_method):
+	print 'Adding results to:', out_file
+	
 	directory = os.path.dirname(out_file)
 	if not os.path.exists(directory):
 		os.makedirs(directory)
