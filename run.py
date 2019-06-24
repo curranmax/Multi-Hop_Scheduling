@@ -1,5 +1,6 @@
 
 import algos
+from datetime import datetime
 import benchmark_utils
 import input_utils
 from profiler import Profiler
@@ -104,7 +105,7 @@ if __name__ == '__main__':
 
 	# Data based on real measurements
 	if input_source in ['microsoft', 'sigmetrics', 'facebook']:
-		traffic = input_utils.Traffic(num_nodes = num_nodes, max_hop = max_route_length, window_size = window_size, num_routes = num_routes, min_route_length = min_route_length, random_seed = 0)
+		traffic = input_utils.Traffic(num_nodes = num_nodes, max_hop = max_route_length, window_size = window_size, num_routes = num_routes, min_route_length = min_route_length, random_seed = datetime.now())
 
 	if input_source == 'sigmetrics':
 		args = {'c_l': capa_large, 'n_l': num_large, 'c_s': capa_small, 'n_s': num_small}
