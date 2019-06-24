@@ -8,7 +8,7 @@ import time
 
 
 # Defines default values for parameters
-DEFAULT_NUM_NODES        = 64
+DEFAULT_NUM_NODES        = 100
 DEFAULT_MIN_ROUTE_LENGTH = 1
 DEFAULT_MAX_ROUTE_LENGTH = 3
 DEFAULT_WINDOW_SIZE      = 10000
@@ -37,7 +37,8 @@ class Input:
 						ns               = DEFAULT_NS,
 						cl               = DEFAULT_CL,
 						cs               = DEFAULT_CS,
-						cluster          = DEFAULT_CLUSTER):
+						cluster          = DEFAULT_CLUSTER,
+		    				out_file = None):
 
 		self.num_nodes        = int(num_nodes)
 		self.min_route_length = int(min_route_length)
@@ -57,6 +58,8 @@ class Input:
 			self.methods = methods
 		elif isinstance(methods, str):
 			self.methods = methods.split(',')
+			
+		self.out_file = out_file
 
 	def niceOutput(self):
 		vals = []
@@ -285,7 +288,11 @@ def getDataFromProcess(proc, inpt, out_file):
 		print 'Parsed:', check_inpt
 		return
 	
-	appendToFile(out_file, inpt, output_by_method)
+	this_outfile = out_file
+	if inpt.out_file is not None:
+		this_out_file = inpt.out_file
+		
+	appendToFile(this_out_file, inpt, output_by_method)
 
 def runAllTests(inputs, num_tests, out_file):
 	for nt in range(num_tests):
@@ -410,57 +417,57 @@ if __name__ == '__main__':
 			num_large = [1,  2,  3,  4,   5,   6 ]
 			num_small = [3,  6,  9,  12,  15,  18]
 			
-			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse']
+			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
 			
 			for nn, nl, ns in zip(num_nodes, num_large, num_small):
-				inputs.append(Input(num_nodes = nn, nl = nl, ns = ns, methods = methods))
+				inputs.append(Input(num_nodes = nn, nl = nl, ns = ns, methods = methods, out_file = out_file.format('num_nodes')))
 
 		elif experiment == RECONFIG_DELTA:
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
-			methods         = ['octopus-r', 'upper-bound', 'split', 'eclipse']
+			methods         = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
 
 			for rd in reconfig_deltas:
-				inputs.append(Input(reconfig_delta = rd, methods = methods))
+				inputs.append(Input(reconfig_delta = rd, methods = methods, out_file = out_file.format('reconfig_delta')))
 
 		elif experiment == SPARSITY:
 			num_large = [1, 2, 3, 4,  5,  6,  7,  8]
 			num_small = [3, 6, 9, 12, 15, 18, 21, 24]
 
-			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse']
+			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
 
 			for nl, ns in zip(num_large, num_small):
-				inputs.append(Input(nl = nl, ns = ns, methods = methods))
+				inputs.append(Input(nl = nl, ns = ns, methods = methods, out_file = out_file.format('sparsity')))
 	
 		elif experiment == SKEWNESS:
 			capa_large = [0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25]
 			capa_small = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75]
-			methods    = ['octopus-r', 'upper-bound', 'split', 'eclipse']
+			methods    = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
 
 			for cl, cs in zip(capa_large, capa_small):
-				inputs.append(Input(cl = cl, cs = cs, methods = methods))
+				inputs.append(Input(cl = cl, cs = cs, methods = methods, out_file = out_file.format('skewness')))
 
 		elif experiment == EPS_TEST:
-			methods       = ['upper-bound', 'octopus-r', 'octopus-e']
+			methods       = ['upper-bound', 'octopus-r', 'octopus-e', 'octopus-e']
 			route_lengths = [1, 2, 3]
 
 			for route_length in route_lengths:
-				inputs.append(Input(min_route_length = route_length, max_route_length = route_length, num_routes = 1, methods = methods))
+				inputs.append(Input(min_route_length = route_length, max_route_length = route_length, num_routes = 1, methods = methods, out_file = out_file.format('eps')))
 
 		elif experiment == REAL_TRAFFIC:
-			methods = ['octopus-r', 'upper-bound', 'split', 'eclipse']
+			methods = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
 			input_source = ['microsoft', 'facebook']
 			cluster = ['1', '2', '3']
 
 			for source in input_source:
 				for clus in cluster:
-					inputs.append(Input(input_source = source, cluster = clus, methods = methods))
+					inputs.append(Input(input_source = source, cluster = clus, methods = methods, out_file = out_file.format('real_traffic')))
 
 		elif experiment == OCTOPUS:
 			methods = ['octopus+', 'octopus-r']
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 
 			for rd in reconfig_deltas:
-				inputs.append(Input(reconfig_delta = rd, methods = methods))
+				inputs.append(Input(reconfig_delta = rd, methods = methods, out_file = out_file.format('octopus')))
 		
 		else:
 			raise Exception('Unexpected experiment: ' + str(experiment))
