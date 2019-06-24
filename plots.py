@@ -62,10 +62,14 @@ def plot_line(table, method, filename=None, x_label=None, x_log=False, y_label=N
 	legend_num_column = 2
 	bbox_to_anchor = (0, 1)
 	if absolute_ub and y_label == '% of Packets Deliverd':
-		y = [66 for _ in X]
-		plt.plot(X, y, label='A-UB')
-		legend_num_column = 3
-		bbox_to_anchor = (-0.28, 1.05)
+		if x_label != 'Varying ave. hop count':
+			y = [66 for _ in X]	
+			plt.plot(X, y, label='A-UB')
+			legend_num_column = 3
+			bbox_to_anchor = (-0.28, 1.05)
+		if x_label == 'Varying ave. hop count':
+			y = [100, 50, 33]
+			plt.plot(X, y, linestyle='--', marker='D', label='A-UB')
 
 	plt.xticks(X)
 	if x_log:       # log scale on x axis
@@ -299,7 +303,7 @@ def plot5(path):
 		print metric
 		print tabulate.tabulate(print_table, headers = ['MIN_ROUTE'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric, 'vary_hop_count'), x_label='Varying ave. hop count', y_label=metric_)
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric, 'vary_hop_count'), x_label='Varying ave. hop count', y_label=metric_, absolute_ub=True)
 
 
 if __name__ == '__main__':
