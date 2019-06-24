@@ -29,7 +29,7 @@ def getMetric(inpt, output, metric = 'percent_packets_delivered'):
 	raise Exception('Unexpected metric: ' + str(metric))
 
 
-def plot_line(table, method, filename=None, x_label=None, x_log=False, y_label=None):
+def plot_line(table, method, filename=None, x_label=None, x_log=False, y_label=None, absolute_ub=False):
 	'''
 	Args:
 		table: the same table used by function tabulate.tabulate()
@@ -38,7 +38,7 @@ def plot_line(table, method, filename=None, x_label=None, x_log=False, y_label=N
 	linestyles = ['-', '--', '-', ':', '--', '-.']  # line styles
 	
 	fig, ax = plt.subplots(figsize=(16, 16))
-	fig.subplots_adjust(left=0.16, right=0.96, top=0.85, bottom=0.15)
+	fig.subplots_adjust(left=0.2, right=0.96, top=0.8, bottom=0.15)
 	X  = [row[0] for row in table]
 	if x_log:
 		X = np.log10((np.array(X, float)/DEFAULT_WINDOW_SIZE))
@@ -50,18 +50,27 @@ def plot_line(table, method, filename=None, x_label=None, x_log=False, y_label=N
 	for i in range(0, num):
 		plt.plot(X, Y[i], linestyle=linestyles[i], marker=markers[i], label=method[i])
 
+	legend_num_column = 2
+	bbox_to_anchor = (0, 1)
+	if absolute_ub and y_label == '% of Packets Deliverd':
+		y = [66 for _ in X]
+		plt.plot(X, y, label='A-UB')
+		legend_num_column = 3
+		bbox_to_anchor = (-0.28, 1.05)
+
 	plt.xticks(X)
-	if x_log:
+	if x_log:       # log scale on x axis
 		plt.xticks(np.arange(-4, 0, 1), ['$10^{-4}$', '$10^{-3}$', '$10^{-2}$', '$10^{-1}$'], )
 		plt.xlim([-4, -0.9])
+
 	y_min = np.min(np.min(table, 0)[1:]) - 10
 	y_max = 101
 	plt.ylim([y_min, y_max])
-	plt.legend(bbox_to_anchor=(0, 1), loc='lower left', ncol=2, fontsize=45)
-	ax.tick_params(direction='in', length=10, width=3)
-	ax.tick_params(axis='x', pad=15)
+	plt.legend(bbox_to_anchor=bbox_to_anchor, loc='lower left', ncol=legend_num_column, fontsize=50)
+	ax.tick_params(direction='in', length=15, width=5)
+	ax.tick_params(pad=20)
 	if x_label:
-		ax.set_xlabel(x_label)
+		ax.set_xlabel(x_label, labelpad=15)
 	if y_label:
 		ax.set_ylabel(y_label)
 	if filename:
@@ -91,7 +100,7 @@ def plot1_1(path):
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['NUN_NODE'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_num_node'), x_label='# of Nodes', y_label=metric_[i])
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_num_node'), x_label='# of Nodes', y_label=metric_[i], absolute_ub=True)
 
 
 def plot1_2(path):
@@ -114,7 +123,7 @@ def plot1_2(path):
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Delta/WindowSize', x_log=True, y_label=metric_[i])
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Delta/WindowSize', x_log=True, y_label=metric_[i], absolute_ub=True)
 
 
 def plot1_3(path):
@@ -137,7 +146,7 @@ def plot1_3(path):
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['CS'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'skewness'), x_label='% of traffic carry by small flows', y_label=metric_[i])
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'skewness'), x_label='% of traffic by small flows', y_label=metric_[i], absolute_ub=True)
 
 
 def plot1_4(path):
@@ -160,7 +169,7 @@ def plot1_4(path):
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['NL+NS'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'sparsity'), x_label='flows per node', y_label=metric_[i])
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'sparsity'), x_label='flows per node', y_label=metric_[i], absolute_ub=True)
 
 
 def plot2(path):
@@ -279,7 +288,7 @@ def plot5(path):
 
 if __name__ == '__main__':
 	
-	plt.rcParams['font.size'] = 55
+	plt.rcParams['font.size'] = 60
 	plt.rcParams['font.weight'] = 'bold'
 	plt.rcParams['axes.labelweight'] = 'bold'
 	plt.rcParams['lines.linewidth'] = 10
@@ -287,11 +296,11 @@ if __name__ == '__main__':
 
 	path = 'data/6-22'
 
-	# plot1_1(path)
-	# plot1_2(path)
-	# plot1_3(path)
-	# plot1_4(path)
+	plot1_1(path)
+	plot1_2(path)
+	plot1_3(path)
+	plot1_4(path)
 	# plot2(path)
 	# plot3(path)
 	# plot4(path)
-	plot5(path)
+	# plot5(path)
