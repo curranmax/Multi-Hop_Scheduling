@@ -3,9 +3,9 @@ import runner
 
 from collections import defaultdict
 import matplotlib.pyplot as plt
+import matplotlib.ticker as tick
 import numpy as np
 import tabulate
-
 from runner import DEFAULT_WINDOW_SIZE
 
 
@@ -29,6 +29,14 @@ def getMetric(inpt, output, metric = 'percent_packets_delivered'):
 	raise Exception('Unexpected metric: ' + str(metric))
 
 
+def y_fmt(tick_val, pos):
+    if tick_val > 100000:
+        val = int(tick_val)/100000
+        return '{:d}'.format(val)
+    else:
+        return tick_val
+
+
 def plot_line(table, method, filename=None, x_label=None, x_log=False, y_label=None, absolute_ub=False):
 	'''
 	Args:
@@ -43,6 +51,7 @@ def plot_line(table, method, filename=None, x_label=None, x_log=False, y_label=N
 	if x_log:
 		X = np.log10((np.array(X, float)/DEFAULT_WINDOW_SIZE))
 	num = len(table[0]) - 1                         # number of methods
+	
 	Y = []
 	for i in range(1, num+1):
 		y = [row[i] for row in table]
@@ -65,10 +74,17 @@ def plot_line(table, method, filename=None, x_label=None, x_log=False, y_label=N
 
 	y_min = np.min(np.min(table, 0)[1:]) - 10
 	y_max = 101
+	if y_label == 'Objective Value':   # objective value comes in hundreds of thousands
+		y_min = np.min(np.min(table, 0)[1:])*0.9
+		y_max = np.max(np.max(table, 0)[1:])*1.1
+		ax.yaxis.set_major_formatter(tick.FuncFormatter(y_fmt))
+		y_label = y_label + ' ($10^5$)'
+
 	plt.ylim([y_min, y_max])
 	plt.legend(bbox_to_anchor=bbox_to_anchor, loc='lower left', ncol=legend_num_column, fontsize=50)
 	ax.tick_params(direction='in', length=15, width=5)
 	ax.tick_params(pad=20)
+
 	if x_label:
 		ax.set_xlabel(x_label, labelpad=15)
 	if y_label:
@@ -269,8 +285,8 @@ def plot5(path):
 
 	methods  = ['octopus-e', 'octopus-r', 'upper-bound']
 	methods_ = ['Oct-e', 'Oct-r', 'UB']
-	metrics   = ['percent_packets_delivered']
-	metrics_  = ['% of Packets Deliverd']
+	metrics   = ['percent_packets_delivered', 'objective_value']
+	metrics_  = ['% of Packets Deliverd', 'Objective Value']
 
 	reduce_func = average
 
@@ -281,9 +297,9 @@ def plot5(path):
 		
 		print_table = [[vs] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric
-		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
+		print tabulate.tabulate(print_table, headers = ['MIN_ROUTE'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, 'Octopus', 'vary_hop_count'), x_label='Varying ave. hop count', y_label=metric_)
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric, 'vary_hop_count'), x_label='Varying ave. hop count', y_label=metric_)
 
 
 if __name__ == '__main__':
@@ -301,6 +317,6 @@ if __name__ == '__main__':
 	# plot1_3(path)
 	# plot1_4(path)
 	# plot2(path)
-	plot3(path)
+	# plot3(path)
 	# plot4(path)
-	# plot5(path)
+	plot5(path)
