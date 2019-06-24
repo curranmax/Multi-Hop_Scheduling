@@ -24,7 +24,7 @@ def getMetric(inpt, output, metric = 'percent_packets_delivered'):
 		return output.total_objective_value
 
 	if metric == 'percent_objective_value':
-		return output.total_objective_value / float(output.packets_delivered + output.packets_not_delivered)  * 100.0
+		return float(output.packets_delivered) / output.total_objective_value * 100.0
 
 	raise Exception('Unexpected metric: ' + str(metric))
 
@@ -296,11 +296,11 @@ if __name__ == '__main__':
 
 	path = 'data/6-22'
 
-	plot1_1(path)
-	plot1_2(path)
-	plot1_3(path)
-	plot1_4(path)
+	# plot1_1(path)
+	# plot1_2(path)
+	# plot1_3(path)
+	# plot1_4(path)
 	# plot2(path)
-	# plot3(path)
+	plot3(path)
 	# plot4(path)
 	# plot5(path)
