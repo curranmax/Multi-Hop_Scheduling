@@ -38,7 +38,10 @@ class Input:
 						cl               = DEFAULT_CL,
 						cs               = DEFAULT_CS,
 						cluster          = DEFAULT_CLUSTER,
-		    				out_file = None):
+	    				
+	    				# Only used when running experiments
+	    				out_file = None,
+	    				key_value = None):
 
 		self.num_nodes        = int(num_nodes)
 		self.min_route_length = int(min_route_length)
@@ -59,7 +62,14 @@ class Input:
 		elif isinstance(methods, str):
 			self.methods = methods.split(',')
 			
-		self.out_file = out_file
+		self.out_file  = out_file
+		self.key_value = key_value
+
+	def getKeyValue(self):
+		if self.key_value is None:
+			return None
+
+		return getattr(self, self.key_value)
 
 	def niceOutput(self):
 		vals = []
@@ -268,7 +278,14 @@ def appendToFile(out_file, inpt, output_by_method):
 
 	f.close()
 
-def getDataFromProcess(proc, inpt, out_file):
+def printStatus(status):
+	max_fname_len = max(len(fname) for fname in status)
+	print '-' * 100
+	for fname, fstatus in sorted(status.iteritems()):
+		print str(fname) + ' ' * (max_fname_len - len(fname)), '-->', ', '.join(map(lambda x: str(x[0]) + ': ' + str(x[1]), sorted(fstatus.iteritems())))
+	print '-' * 100
+
+def getDataFromProcess(proc, inpt, out_file, status = None):
 	vals = []
 	for line in proc.stdout:
 		vals.append(line.strip())
@@ -289,6 +306,10 @@ def getDataFromProcess(proc, inpt, out_file):
 		print 'Given: ', inpt
 		print 'Parsed:', check_inpt
 		return
+
+	if status is not None:
+		status[inpt.out_file][inpt.getKeyValue()] += 1
+		printStatus(status)
 	
 	this_outfile = out_file
 	if inpt.out_file is not None:
@@ -310,6 +331,15 @@ def runAllTests(inputs, num_tests, out_file):
 			getDataFromProcess(p, inpt, out_file)
 
 def runAllTestsInParallel(inputs, num_tests, out_file, num_cores = 1, wait_time = 30):
+	if all(inpt.out_file is not None and inpt.key_value is not None for inpt in inputs):
+		status = defaultdict(dict)
+		for inpt in inputs:
+			status[inpt.out_file][inpt.getKeyValue()] = 0
+
+		printStatus(status)
+	else:
+		status = None
+
 	ps = []
 	for nt in range(num_tests):
 		for inpt in inputs:
@@ -327,7 +357,7 @@ def runAllTestsInParallel(inputs, num_tests, out_file, num_cores = 1, wait_time 
 				new_ps = []
 				for p, inpt in ps:
 					if p.poll() is not None:
-						getDataFromProcess(p, inpt, out_file)
+						getDataFromProcess(p, inpt, out_file, status = status)
 					else:
 						new_ps.append((p, inpt))
 				ps = new_ps
@@ -422,14 +452,14 @@ if __name__ == '__main__':
 			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
 			
 			for nn, nl, ns in zip(num_nodes, num_large, num_small):
-				inputs.append(Input(num_nodes = nn, nl = nl, ns = ns, methods = methods, out_file = out_file.format('num_nodes')))
+				inputs.append(Input(num_nodes = nn, nl = nl, ns = ns, methods = methods, out_file = out_file.format('num_nodes'), key_value = 'num_nodes'))
 
 		elif experiment == RECONFIG_DELTA:
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 			methods         = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
 
 			for rd in reconfig_deltas:
-				inputs.append(Input(reconfig_delta = rd, methods = methods, out_file = out_file.format('reconfig_delta')))
+				inputs.append(Input(reconfig_delta = rd, methods = methods, out_file = out_file.format('reconfig_delta'), key_value = 'reconfig_delta'))
 
 		elif experiment == SPARSITY:
 			num_large = [1, 2, 3, 4,  5,  6,  7,  8]
@@ -438,7 +468,7 @@ if __name__ == '__main__':
 			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
 
 			for nl, ns in zip(num_large, num_small):
-				inputs.append(Input(nl = nl, ns = ns, methods = methods, out_file = out_file.format('sparsity')))
+				inputs.append(Input(nl = nl, ns = ns, methods = methods, out_file = out_file.format('sparsity'), key_value = 'nl'))
 	
 		elif experiment == SKEWNESS:
 			capa_large = [0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25]
@@ -446,14 +476,14 @@ if __name__ == '__main__':
 			methods    = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
 
 			for cl, cs in zip(capa_large, capa_small):
-				inputs.append(Input(cl = cl, cs = cs, methods = methods, out_file = out_file.format('skewness')))
+				inputs.append(Input(cl = cl, cs = cs, methods = methods, out_file = out_file.format('skewness'), key_value = 'cl'))
 
 		elif experiment == EPS_TEST:
 			methods       = ['upper-bound', 'octopus-r', 'octopus-e', 'octopus-e']
 			route_lengths = [1, 2, 3]
 
 			for route_length in route_lengths:
-				inputs.append(Input(min_route_length = route_length, max_route_length = route_length, num_routes = 1, methods = methods, out_file = out_file.format('eps')))
+				inputs.append(Input(min_route_length = route_length, max_route_length = route_length, num_routes = 1, methods = methods, out_file = out_file.format('eps'), key_value = 'min_route_length'))
 
 		elif experiment == REAL_TRAFFIC:
 			methods = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
@@ -462,14 +492,14 @@ if __name__ == '__main__':
 
 			for source in input_source:
 				for clus in cluster:
-					inputs.append(Input(input_source = source, cluster = clus, methods = methods, out_file = out_file.format('real_traffic')))
+					inputs.append(Input(input_source = source, cluster = clus, methods = methods, out_file = out_file.format('real_traffic'), key_value = 'input_source'))
 
 		elif experiment == OCTOPUS:
 			methods = ['octopus+', 'octopus-r']
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 
 			for rd in reconfig_deltas:
-				inputs.append(Input(reconfig_delta = rd, methods = methods, out_file = out_file.format('octopus')))
+				inputs.append(Input(reconfig_delta = rd, methods = methods, out_file = out_file.format('octopus'), key_value = 'reconfig_delta'))
 		
 		else:
 			raise Exception('Unexpected experiment: ' + str(experiment))
