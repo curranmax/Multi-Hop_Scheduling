@@ -97,13 +97,10 @@ def plot_line(table, method, filename=None, x_label=None, x_log=False, y_label=N
 		fig.savefig('{}.png'.format(filename))
 	else:
 		fig.savefig('plot/tmp.png')
-	#plt.show()
 
 
 def plot1_1(path):
-	# python runner.py -exp num_nodes -nt 1 -out data/6-22/1.1.txt
-
-	filename = '{}/1.1.txt'
+	filename = '{}/num_nodes.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
 	methods  = ['octopus-r', 'upper-bound', 'split', 'eclipse']
@@ -111,12 +108,14 @@ def plot1_1(path):
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     '% of Link Utilization']
 
+	reduce_func = average
+
 	for i in range(0, len(metric)):
-		table = {}
+		table = defaultdict(list)
 		for inpt, output_by_method in data:
-			table[(inpt.num_nodes)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.num_nodes)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
 		
-		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
+		print_table = [[vs] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['NUN_NODE'] + methods)
 		print ''
@@ -124,9 +123,6 @@ def plot1_1(path):
 
 
 def plot1_2(path):
-	# python runner.py -exp reconfig_delta -nt 3 -out data/6-22/1.2.txt
-
-	# filename = '{}/1.2.txt'
 	filename = '{}/reconfig_delta.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
@@ -150,9 +146,6 @@ def plot1_2(path):
 
 
 def plot1_3(path):
-	# python runner.py -exp skewness -nt 3 -out data/6-22/1.3.txt
-
-	# filename = '{}/1.3.txt'
 	filename = '{}/skewness.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
@@ -176,9 +169,6 @@ def plot1_3(path):
 
 
 def plot1_4(path):
-	# python runner.py -exp sparsity -nt 3 -out data/6-22/1.4.txt
-	
-	# filename = '{}/1.4.txt'
 	filename = '{}/sparsity.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
@@ -202,8 +192,6 @@ def plot1_4(path):
 
 
 def plot2(path):
-	# python runner.py -exp real_traffic -nt 3 -out data/6-22/2.txt  (somehow three experiments are getting the same results, random seed. but how the experiments in 1.* worked?)
-	# filename = '{}/2.txt'
 	filename = '{}/real_traffic.txt'
 	data = runner.readDataFromFile(filename.format(path))
 	methods  = ['octopus-r', 'upper-bound', 'split', 'eclipse']
@@ -250,8 +238,6 @@ def plot2(path):
 
 
 def plot3(path):
-	# the data comes from python runner.py -exp reconfig_delta -nt 3 -out data/6-22/1.2.txt
-	# filename = '{}/1.2.txt'
 	filename = '{}/reconfig_delta.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
@@ -275,8 +261,6 @@ def plot3(path):
 
 
 def plot4(path):
-	# python runner.py -exp octopus -nt 3 -out data/6-22/4.txt (somehow three experiments are getting the same results, random seed. but how the experiments in 1.* worked?)
-	# filename = '{}/4.txt'
 	filename = '{}/octopus.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
@@ -300,8 +284,6 @@ def plot4(path):
 
 
 def plot5(path):
-	# python runner.py -exp eps -nt 3 -out data/6-22/5.txt
-	# filenames = ['{}/5.txt', '{}/5_2.txt']
 	filenames = ['{}/eps.txt']
 	data = sum((runner.readDataFromFile(filename.format(path)) for filename in filenames), [])
 
@@ -334,7 +316,7 @@ if __name__ == '__main__':
 
 	path = 'data/6-23'
 
-	# plot1_1(path)  # num of nodes
+	plot1_1(path)  # num of nodes
 	plot1_2(path)  # reconfig delta
 	plot1_3(path)  # skewness
 	plot1_4(path)  # sparsity
