@@ -296,7 +296,7 @@ def plot4(path):
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, 'Octopus', 'vary_delta'), x_label='Delta/WindowSize', x_log=True, y_label=metric_[i])
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, 'octopus', 'vary_delta'), x_label='Delta/WindowSize', x_log=True, y_label=metric_[i])
 
 
 def plot5(path):
