@@ -126,7 +126,8 @@ def plot1_1(path):
 def plot1_2(path):
 	# python runner.py -exp reconfig_delta -nt 3 -out data/6-22/1.2.txt
 
-	filename = '{}/1.2.txt'
+	# filename = '{}/1.2.txt'
+	filename = '{}/reconfig_delta.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
 	methods  = ['octopus-r', 'upper-bound', 'split', 'eclipse']
@@ -134,12 +135,14 @@ def plot1_2(path):
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     '% of Link Utilization']
 
+	reduce_func = average
+
 	for i in range(0, len(metric)):
-		table = {}
+		table = defaultdict(list)
 		for inpt, output_by_method in data:
-			table[(inpt.reconfig_delta)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.reconfig_delta)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
 		
-		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
+		print_table = [[vs] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
 		print ''
@@ -149,7 +152,8 @@ def plot1_2(path):
 def plot1_3(path):
 	# python runner.py -exp skewness -nt 3 -out data/6-22/1.3.txt
 
-	filename = '{}/1.3.txt'
+	# filename = '{}/1.3.txt'
+	filename = '{}/skewness.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
 	methods  = ['octopus-r', 'upper-bound', 'split', 'eclipse']
@@ -157,12 +161,14 @@ def plot1_3(path):
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     '% of Link Utilization']
 
+	reduce_func = average
+
 	for i in range(0, len(metric)):
-		table = {}
+		table = defaultdict(list)
 		for inpt, output_by_method in data:
-			table[(inpt.cs)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.cs)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
 		
-		print_table = [[int(vs*100)] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
+		print_table = [[int(vs*100)] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['CS'] + methods)
 		print ''
@@ -172,7 +178,8 @@ def plot1_3(path):
 def plot1_4(path):
 	# python runner.py -exp sparsity -nt 3 -out data/6-22/1.4.txt
 	
-	filename = '{}/1.4.txt'
+	# filename = '{}/1.4.txt'
+	filename = '{}/sparsity.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
 	methods  = ['octopus-r', 'upper-bound', 'split', 'eclipse']
@@ -180,12 +187,14 @@ def plot1_4(path):
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     '% of Link Utilization']
 
+	reduce_func = average
+
 	for i in range(0, len(metric)):
-		table = {}
+		table = defaultdict(list)
 		for inpt, output_by_method in data:
-			table[(inpt.nl, inpt.ns)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.nl, inpt.ns)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
 		
-		print_table = [[int(vs[0])+int(vs[1])] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
+		print_table = [[int(vs[0])+int(vs[1])] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['NL+NS'] + methods)
 		print ''
@@ -194,18 +203,21 @@ def plot1_4(path):
 
 def plot2(path):
 	# python runner.py -exp real_traffic -nt 3 -out data/6-22/2.txt  (somehow three experiments are getting the same results, random seed. but how the experiments in 1.* worked?)
-	filename = '{}/2.txt'
+	# filename = '{}/2.txt'
+	filename = '{}/real_traffic.txt'
 	data = runner.readDataFromFile(filename.format(path))
 	methods  = ['octopus-r', 'upper-bound', 'split', 'eclipse']
 	metrics  = ['percent_packets_delivered']
 	metrics_ = ['% of Packets Deliverd']
 
+	reduce_func = average
+
 	for metric, metric_ in zip(metrics, metrics_):
-		table = {}
+		table = defaultdict(list)
 		for inpt, output_by_method in data:
-			table[(inpt.input_source, inpt.cluster)] = {method: getMetric(inpt, output, metric=metric) for method, output in output_by_method.iteritems()}
+			table[(inpt.input_source, inpt.cluster)].append({method: getMetric(inpt, output, metric=metric) for method, output in output_by_method.iteritems()})
 		
-		print_table = [list(vs) + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
+		print_table = [list(vs) + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric
 		print tabulate.tabulate(print_table, headers = ['SOURCE', 'CLUSTER'] + methods)
 		
@@ -239,7 +251,8 @@ def plot2(path):
 
 def plot3(path):
 	# the data comes from python runner.py -exp reconfig_delta -nt 3 -out data/6-22/1.2.txt
-	filename = '{}/1.2.txt'
+	# filename = '{}/1.2.txt'
+	filename = '{}/reconfig_delta.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
 	methods  = ['octopus-r', 'upper-bound', 'eclipse']
@@ -247,12 +260,14 @@ def plot3(path):
 	metric   = ['percent_objective_value']
 	metric_  = [ '% of Objective Value']
 
+	reduce_func = average
+
 	for i in range(0, len(metric)):
-		table = {}
+		table = defaultdict(list)
 		for inpt, output_by_method in data:
-			table[(inpt.reconfig_delta)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.reconfig_delta)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
 		
-		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
+		print_table = [[vs] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
 		print ''
@@ -261,7 +276,8 @@ def plot3(path):
 
 def plot4(path):
 	# python runner.py -exp octopus -nt 3 -out data/6-22/4.txt (somehow three experiments are getting the same results, random seed. but how the experiments in 1.* worked?)
-	filename = '{}/4.txt'
+	# filename = '{}/4.txt'
+	filename = '{}/octopus.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
 	methods  = ['octopus-r', 'octopus+']
@@ -269,22 +285,24 @@ def plot4(path):
 	metric   = ['percent_packets_delivered']
 	metric_  = ['% of Packets Deliverd']
 
+	reduce_func = average
+
 	for i in range(0, len(metric)):
-		table = {}
+		table = defaultdict(list)
 		for inpt, output_by_method in data:
-			table[(inpt.reconfig_delta)] = {method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()}
+			table[(inpt.reconfig_delta)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
 		
-		print_table = [[vs] + [(vals_by_method[method] if method in vals_by_method else None) for method in methods] for vs, vals_by_method in sorted(table.iteritems())]
+		print_table = [[vs] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, 'Octopus', 'vary_delta'), x_label='Delta/WindowSize', x_log=True, y_label=metric_[i])
-
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, 'octopus', 'vary_delta'), x_label='Delta/WindowSize', x_log=True, y_label=metric_[i])
 
 
 def plot5(path):
 	# python runner.py -exp eps -nt 3 -out data/6-22/5.txt
-	filenames = ['{}/5.txt', '{}/5_2.txt']
+	# filenames = ['{}/5.txt', '{}/5_2.txt']
+	filenames = ['{}/eps.txt']
 	data = sum((runner.readDataFromFile(filename.format(path)) for filename in filenames), [])
 
 	methods  = ['octopus-e', 'octopus-r', 'upper-bound']
@@ -314,13 +332,13 @@ if __name__ == '__main__':
 	plt.rcParams['lines.linewidth'] = 10
 	plt.rcParams['lines.markersize'] = 15
 
-	path = 'data/6-22'
+	path = 'data/6-23'
 
-	# plot1_1(path)
-	# plot1_2(path)
-	# plot1_3(path)
-	# plot1_4(path)
-	# plot2(path)
-	# plot3(path)
-	# plot4(path)
-	plot5(path)
+	# plot1_1(path)  # num of nodes
+	plot1_2(path)  # reconfig delta
+	plot1_3(path)  # skewness
+	plot1_4(path)  # sparsity
+	plot2(path)    # real traffic
+	plot3(path)    # reconfig delta + percentage objective value
+	plot4(path)    # reconfig delta + octopus+/R
+	plot5(path)    # average hop count
