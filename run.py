@@ -128,6 +128,29 @@ if __name__ == '__main__':
 		# 	print(flows[k])
 		# print(traffic)
 
+	compute_upper_bound = False
+	if compute_upper_bound:
+		total_packets = sum(flow.size for _, flow in flows.iteritems()) / float(num_nodes)
+		total_packets_by_route_length = {1: total_packets / 3.0, 2: total_packets / 3.0, 3: total_packets / 3.0}
+
+		print 'Total packets:', total_packets
+		window_size_unused = window_size
+		upper_bound = 0.0
+		for rl, packets in sorted(total_packets_by_route_length.iteritems()):
+			if rl * packets >= window_size_unused:
+				print 'From rl', rl, '-->', float(window_size_unused) / float(rl)
+				upper_bound += float(window_size_unused) / float(rl)
+				break
+			else:
+				print 'a'
+				print 'From rl', rl, '-->', float(packets) / float(rl)
+				upper_bound += float(packets) / float(rl)
+				window_size_unused -= packets * rl
+
+		print 'Upper bound:', upper_bound / window_size * 100.0
+
+		quit()
+
 	# Run test
 	results = {}
 	for method in methods:
