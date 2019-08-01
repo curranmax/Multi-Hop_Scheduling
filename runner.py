@@ -367,7 +367,7 @@ def runAllTestsInParallel(inputs, num_tests, out_file, num_cores = 1, wait_time 
 		new_ps = []
 		for p, inpt in ps:
 			if p.poll() is not None:
-				getDataFromProcess(p, inpt, out_file)
+				getDataFromProcess(p, inpt, out_file, status = status)
 			else:
 				new_ps.append((p, inpt))
 		ps = new_ps
