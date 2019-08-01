@@ -139,7 +139,7 @@ class Traffic:
         return permutation_matrix
 
 
-    def bound_traffic(self):
+    def bound_traffic(self, multiply=1):
         '''Bound the traffic so that the sum of column and row is smaller than window size. Sigmetrics'16 Hybrid section 2.2
         '''
         colum_sum = np.sum(self.matrix, 0)
@@ -149,8 +149,10 @@ class Traffic:
         if ratio > 1:
             self.matrix /= ratio               # bounded to 1
 
-        self.matrix *= self.window_size     # scale to window size
+        self.matrix *= self.window_size        # scale to window size
+        self.matrix *= multiply                # if multiply = 2, then it is doubling the traffic. It will lead to some column/row summation larger than window_size
         self.matrix = np.array(self.matrix, dtype=int)
+
 
     def sigmetrics(self, c_l=0.7, n_l=4, c_s=0.3, n_s=12):
         '''
@@ -199,10 +201,11 @@ class Traffic:
         return self.flows
 
 
-    def microsoft(self, cluster):
+    def microsoft(self, cluster, multiply=1):
         ''' Website: https://www.microsoft.com/en-us/research/project/projector-agile-reconfigurable-data-center-interconnect/
         Args:
             cluster (int): options -- 1, 2, 3. Cluster 1 has ~100 nodes, 2 has ~450 nodes, 3 has ~1500 nodes
+            multiply (int): it multiplies the entire traffic matrix
         Return:
             {(int, int) -> Flow}
         '''
@@ -227,7 +230,7 @@ class Traffic:
                 size = int(size*rand)
                 self.matrix[i][j] = size
         
-        self.bound_traffic()
+        self.bound_traffic(multiply)
 
         ID = 0
         self.flows  = {}
@@ -246,10 +249,11 @@ class Traffic:
         return self.flows
 
 
-    def facebook(self, cluster='A'):
+    def facebook(self, cluster='A', multiply=1):
         '''
         Args:
             cluster (str): options -- 'A', 'C'. A is database cluster, C is hadoop cluster
+            multiply (int): it multiplies the entire traffic matrix
         Return:
             {(int, int) -> Flow}
         '''
@@ -295,7 +299,7 @@ class Traffic:
         subset_nodes = random.sample(range(num_node), self.num_nodes)  # randomly select a subset of nodes
         self.matrix = self.matrix[np.ix_(subset_nodes, subset_nodes)]
 
-        self.bound_traffic()
+        self.bound_traffic(multiply)
 
         ID = 0
         self.flows  = {}
@@ -413,13 +417,13 @@ if __name__ == '__main__':
     # for k in flows:
     #     print(flows[k])
     # print(t)
-    flows = t.facebook(cluster='A')
+    flows = t.facebook(cluster='A', multiply=2)
     print(t)
     print('\n****\n')
-    flows = t.facebook(cluster='B')
+    flows = t.facebook(cluster='B', multiply=2)
     print(t)
     print('\n****\n')
-    flows = t.facebook(cluster='C')
+    flows = t.facebook(cluster='C', multiply=2)
     print(t)
     # for k in flows:
     #     print(flows[k])

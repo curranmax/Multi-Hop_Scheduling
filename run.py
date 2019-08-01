@@ -116,14 +116,14 @@ if __name__ == '__main__':
 		# print(traffic)
 
 	if input_source == 'microsoft':
-		flows = traffic.microsoft(cluster)  # cluster 1 is somewhat dense
+		flows = traffic.microsoft(cluster, multiply=2)  # cluster 1 is somewhat dense
 		# for k in flows:
 		# 	print(flows[k])
 		# print(traffic)
 	
 	if input_source == 'facebook':
 		mydic = {1:'A', 2:'B', 3:'C'}
-		flows = traffic.facebook(cluster=mydic[cluster])
+		flows = traffic.facebook(cluster=mydic[cluster], multiply=2)
 		# for k in flows:
 		# 	print(flows[k])
 		# print(traffic)
