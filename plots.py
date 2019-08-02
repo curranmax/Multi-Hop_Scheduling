@@ -314,13 +314,13 @@ if __name__ == '__main__':
 	plt.rcParams['lines.linewidth'] = 10
 	plt.rcParams['lines.markersize'] = 15
 
-	path = 'data/6-23'
+	path = 'data/8-1'
 
-	plot1_1(path)  # num of nodes
-	plot1_2(path)  # reconfig delta
-	plot1_3(path)  # skewness
-	plot1_4(path)  # sparsity
+	# plot1_1(path)  # num of nodes
+	# plot1_2(path)  # reconfig delta
+	# plot1_3(path)  # skewness
+	# plot1_4(path)  # sparsity
 	plot2(path)    # real traffic
-	plot3(path)    # reconfig delta + percentage objective value
-	plot4(path)    # reconfig delta + octopus+/R
-	plot5(path)    # average hop count
+	# plot3(path)    # reconfig delta + percentage objective value
+	# plot4(path)    # reconfig delta + octopus+/R
+	# plot5(path)    # average hop count
