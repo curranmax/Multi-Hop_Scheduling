@@ -445,10 +445,13 @@ if __name__ == '__main__':
 			inputs.append(Input(window_size = 100))
 
 		if experiment == NUM_NODES:
-			num_nodes = [25, 50, 75, 100, 125, 150]
-			num_large = [1,  2,  3,  4,   5,   6 ]
-			num_small = [3,  6,  9,  12,  15,  18]
+			# num_nodes = [25, 50, 75, 100, 125, 150]
+			# num_large = [1,  2,  3,  4,   5,   6 ]
+			# num_small = [3,  6,  9,  12,  15,  18]
 			
+			num_nodes = [25, 200, 300]
+			num_large = [1,  8,   12]
+			num_small = [3,  24,  36]
 			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
 			
 			for nn, nl, ns in zip(num_nodes, num_large, num_small):
@@ -486,9 +489,12 @@ if __name__ == '__main__':
 				inputs.append(Input(min_route_length = route_length, max_route_length = route_length, num_routes = 1, methods = methods, out_file = out_file.format('eps'), key_value = 'min_route_length'))
 
 		elif experiment == REAL_TRAFFIC:
-			methods = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
-			input_source = ['microsoft', 'facebook']
-			cluster = ['1', '2', '3']
+			# methods = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
+			# input_source = ['microsoft', 'facebook']
+			# cluster = ['1', '2', '3']
+			methods = ['octopus-r', 'split']
+			input_source = ['facebook']
+			cluster = ['1']
 
 			for source in input_source:
 				for clus in cluster:
