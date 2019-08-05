@@ -123,11 +123,7 @@ if __name__ == '__main__':
 	
 	if input_source == 'facebook':
 		mydic = {1:'A', 2:'B', 3:'C'}
-<<<<<<< HEAD
-		flows = traffic.facebook(cluster=mydic[cluster], multiply=10)
-=======
 		flows = traffic.facebook(cluster = mydic[cluster], multiply = 10)
->>>>>>> 619f38eb3926d5f1da8449e8ceac4d181d21a16f
 		# for k in flows:
 		# 	print(flows[k])
 		# print(traffic)

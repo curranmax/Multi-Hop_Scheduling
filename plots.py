@@ -237,6 +237,46 @@ def plot2(path):
 		plt.savefig('{}/{}-real_traffic'.format(path, metric))
 
 
+def plot2_(path, file):
+	filename = '{}/{}.txt'
+	data = runner.readDataFromFile(filename.format(path, file))
+	methods  = ['octopus-r', 'split']
+	metrics  = ['percent_packets_delivered']
+	metrics_ = ['% of Packets Deliverd']
+
+	reduce_func = average
+
+	for metric, metric_ in zip(metrics, metrics_):
+		table = defaultdict(list)
+		for inpt, output_by_method in data:
+			table[(inpt.input_source, inpt.cluster)].append({method: getMetric(inpt, output, metric=metric) for method, output in output_by_method.iteritems()})
+		
+		print_table = [list(vs) + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		print metric
+		print tabulate.tabulate(print_table, headers = ['SOURCE', 'CLUSTER'] + methods)
+		
+		arr = np.array(print_table)
+		oct_r = np.array(arr[:, 2], float)
+		split = np.array(arr[:, 3], float)
+
+		ind   = np.arange(len(oct_r))
+		width = 0.3
+		
+		fig, ax = plt.subplots(figsize=(22.2, 15))
+		fig.subplots_adjust(left=0.15, right=0.96, top=0.85, bottom=0.1)
+		pos1 = ind - width*0.5
+		pos2 = ind + width*0.5
+		ax.bar(pos1, split, width, edgecolor='black', label='Split')
+		ax.bar(pos2, oct_r, width, edgecolor='black', label='Oct-r')
+		
+		plt.legend(bbox_to_anchor=(-0.02, 1), loc='lower left', ncol=4, fontsize=45)
+		ax.tick_params(axis='y', direction='in', length=10, width=3, pad=15)
+		ax.set_ylabel(metric_)
+		ax.set_xlabel('Varies Clusters')
+		plt.xticks(ind, ['FB-1', 'MS-1'], fontsize=45)
+		plt.savefig('{}/{}-{}'.format(path, metric, file))
+
+
 def plot3(path):
 	filename = '{}/reconfig_delta.txt'
 	data = runner.readDataFromFile(filename.format(path))
@@ -314,13 +354,13 @@ if __name__ == '__main__':
 	plt.rcParams['lines.linewidth'] = 10
 	plt.rcParams['lines.markersize'] = 15
 
-	path = 'data/8-1'
+	path = 'data/8-4'
 
-	# plot1_1(path)  # num of nodes
+	plot1_1(path)  # num of nodes
 	# plot1_2(path)  # reconfig delta
 	# plot1_3(path)  # skewness
 	# plot1_4(path)  # sparsity
-	plot2(path)    # real traffic
+	# plot2_(path, 'real_traffic-10-merge')    # real traffic
 	# plot3(path)    # reconfig delta + percentage objective value
 	# plot4(path)    # reconfig delta + octopus+/R
 	# plot5(path)    # average hop count
