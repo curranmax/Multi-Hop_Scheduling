@@ -39,7 +39,7 @@ def y_fmt(tick_val, pos):
 
 
 METHOD  = ['Octopus', 'Octopus+', 'Octopus-e', 'Eclipse-Based', 'UB', 'Absolute-UB']
-_COLOR  = ['b',       'c',         'm',        'r',     'g',      'orange']
+_COLOR  = ['b',       'c',        'm',         'r',             'g',  'orange']
 _MARKER = ['o',       'h',        's',         '^',             'D',  'P']
 _LINE   = ['-',       '--',       '-',         ':',             '--', '-.']
 COLOR   = dict(zip(METHOD, _COLOR))
@@ -366,7 +366,7 @@ if __name__ == '__main__':
 	plot1_2(path)  # reconfig delta
 	plot1_3(path)  # skewness
 	plot1_4(path)  # sparsity
-	plot2(path)
+	plot2(path)    # real traffic
 	plot3(path)    # reconfig delta + percentage objective value
 	plot4(path)    # reconfig delta + octopus+/R
 	plot5(path)    # average hop count
