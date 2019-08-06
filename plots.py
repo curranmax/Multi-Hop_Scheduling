@@ -39,7 +39,7 @@ def y_fmt(tick_val, pos):
 
 
 METHOD  = ['Octopus', 'Octopus+', 'Octopus-e', 'Eclipse-Based', 'UB',      'Absolute-UB']
-_COLOR  = ['b',       'c',        'olive',         'g',             'orange',  'r']
+_COLOR  = ['b',       'c',        'gray',      'g',             'orange',  'r']
 _MARKER = ['o',       'h',        's',         '^',             'D',       'P']
 _LINE   = ['-',       ':',        ':',         ':',             ':',       '-']
 COLOR   = dict(zip(METHOD, _COLOR))
