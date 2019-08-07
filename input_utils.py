@@ -164,8 +164,8 @@ class Traffic:
         Return:
             {(int, int) -> Flow}
         '''
-        # random.seed(self.random_seed)                                       # replicable
-        # np.random.seed(self.random_seed)
+        random.seed(self.random_seed)                                       # replicable
+        np.random.seed(self.random_seed)
         self.matrix = np.zeros((self.num_nodes, self.num_nodes))
         for _ in range(n_l):                  # large flows
             permutation = self.random_permutation()
