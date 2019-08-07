@@ -2,6 +2,8 @@
 import runner
 
 from collections import defaultdict
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
 import numpy as np
@@ -197,7 +199,7 @@ def plot1_4(path):
 		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'sparsity'), x_label='flows per node', y_label=metric_[i], absolute_ub=True)
 
 
-def plot2(path):
+def plot2_1(path):
 	filename = '{}/real_traffic.txt'
 	data = runner.readDataFromFile(filename.format(path))
 	methods  = ['octopus-r', 'upper-bound', 'eclipse']
@@ -234,6 +236,49 @@ def plot2(path):
 		ax.bar(pos2, oct_r, width, edgecolor='black', label='Octopus', color=COLOR['Octopus'])
 		ax.bar(pos3, ub, width, edgecolor='black', label='UB', color=COLOR['UB'])
 		ax.bar(pos4, a_ub,    width, edgecolor='black', label='Absolute-UB', color=COLOR['Absolute-UB'])
+		
+		plt.legend(bbox_to_anchor=(-0.18, 1.04), loc='lower left', ncol=4, fontsize=45)
+		ax.tick_params(axis='y', direction='in', length=10, width=3, pad=15)
+		ax.set_ylabel(metric_)
+		ax.set_xlabel('Varies Clusters')
+		plt.xticks(ind, ['FB-1', 'FB-2', 'FB-3', 'MS-1', 'MS-2', 'MS-3'], fontsize=45)
+		plt.savefig('{}/{}-real_traffic'.format(path, metric))
+
+
+def plot2_2(path):
+	filename = '{}/real_traffic.txt'
+	data = runner.readDataFromFile(filename.format(path))
+	methods  = ['octopus-r', 'upper-bound', 'eclipse']
+	metrics  = ['link_utilization']
+	metrics_ = ['Link Utilization (%)']
+
+	reduce_func = average
+
+	for metric, metric_ in zip(metrics, metrics_):
+		table = defaultdict(list)
+		for inpt, output_by_method in data:
+			table[(inpt.input_source, inpt.cluster)].append({method: getMetric(inpt, output, metric=metric) for method, output in output_by_method.iteritems()})
+		
+		print_table = [list(vs) + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		print metric
+		print tabulate.tabulate(print_table, headers = ['SOURCE', 'CLUSTER'] + methods)
+		
+		arr = np.array(print_table)
+		oct_r = np.array(arr[:, 2], float)
+		ub    = np.array(arr[:, 3], float)
+		eclip = np.array(arr[:, 4], float)
+
+		ind   = np.arange(len(oct_r))
+		width = 0.25
+		
+		fig, ax = plt.subplots(figsize=(23.5, 16))
+		fig.subplots_adjust(left=0.15, right=0.96, top=0.85, bottom=0.1)
+		pos1 = ind - width*1.5-0.02
+		pos2 = ind - width*0.5
+		pos3 = ind + width*0.5+0.02
+		ax.bar(pos1, eclip, width, edgecolor='black', label='Eclipse-Based', color=COLOR['Eclipse-Based'])
+		ax.bar(pos2, oct_r, width, edgecolor='black', label='Octopus', color=COLOR['Octopus'])
+		ax.bar(pos3, ub, width, edgecolor='black', label='UB', color=COLOR['UB'])
 		
 		plt.legend(bbox_to_anchor=(-0.18, 1.04), loc='lower left', ncol=4, fontsize=45)
 		ax.tick_params(axis='y', direction='in', length=10, width=3, pad=15)
@@ -362,13 +407,14 @@ if __name__ == '__main__':
 
 	path = 'data/6-23'
 
-	plot1_1(path)  # num of nodes
-	plot1_2(path)  # reconfig delta
-	plot1_3(path)  # skewness
-	plot1_4(path)  # sparsity
-	plot2(path)    # real traffic
-	plot3(path)    # reconfig delta + percentage objective value
-	plot4(path)    # reconfig delta + octopus+/R
-	plot5(path)    # average hop count
+	# plot1_1(path)  # num of nodes
+	# plot1_2(path)  # reconfig delta
+	# plot1_3(path)  # skewness
+	# plot1_4(path)  # sparsity
+	# plot2_1(path)    # real traffic
+	plot2_2(path)    # real traffic
+	# plot3(path)    # reconfig delta + percentage objective value
+	# plot4(path)    # reconfig delta + octopus+/R
+	# plot5(path)    # average hop count
 
 	# plot2_(path, 'real_traffic-10-merge')    # real traffic
