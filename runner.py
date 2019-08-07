@@ -16,7 +16,7 @@ DEFAULT_RECONFIG_DELTA   = 20
 DEFAULT_NUM_ROUTES       = 10
 DEFAULT_USE_EPS          = False
 DEFAULT_INPUT_SOURCE     = 'sigmetrics'
-DEFAULT_METHODS          = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+', 'octopus-e']
+DEFAULT_METHODS          = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+', 'octopus-e', 'octopus-b']
 DEFAULT_NL               = 4    # number of large flows   (for sigmetrics only)
 DEFAULT_NS               = 12   # number of small flows   (for sigmetrics only)
 DEFAULT_CL               = 0.7  # capacity of large flows (for sigmetrics only)
@@ -349,6 +349,8 @@ def runAllTestsInParallel(inputs, num_tests, out_file, num_cores = 1, wait_time 
 			print 'Running test with params', inpt.niceOutput()
 			print 'Start time:                 ', datetime.now().strftime('%A %I:%M %p')
 
+			print args
+
 			p = subprocess.Popen(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 			ps.append((p, inpt))
 
@@ -444,7 +446,7 @@ if __name__ == '__main__':
 		if experiment == TEST:
 			inputs.append(Input(window_size = 100))
 
-		if experiment == NUM_NODES:
+		elif experiment == NUM_NODES:
 			# num_nodes = [25, 50, 75, 100, 125, 150]
 			# num_large = [1,  2,  3,  4,   5,   6 ]
 			# num_small = [3,  6,  9,  12,  15,  18]
