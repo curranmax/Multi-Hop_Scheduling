@@ -269,7 +269,7 @@ def plot2_2(path):
 		eclip = np.array(arr[:, 4], float)
 
 		ind   = np.arange(len(oct_r))
-		width = 0.25
+		width = 0.21
 		
 		fig, ax = plt.subplots(figsize=(23.5, 16))
 		fig.subplots_adjust(left=0.15, right=0.96, top=0.85, bottom=0.1)
@@ -280,10 +280,11 @@ def plot2_2(path):
 		ax.bar(pos2, oct_r, width, edgecolor='black', label='Octopus', color=COLOR['Octopus'])
 		ax.bar(pos3, ub, width, edgecolor='black', label='UB', color=COLOR['UB'])
 		
-		plt.legend(bbox_to_anchor=(-0.18, 1.04), loc='lower left', ncol=4, fontsize=45)
+		plt.legend(bbox_to_anchor=(0, 1.04), loc='lower left', ncol=4, fontsize=45)
 		ax.tick_params(axis='y', direction='in', length=10, width=3, pad=15)
 		ax.set_ylabel(metric_)
-		ax.set_xlabel('Varies Clusters')
+		ax.set_ylim([0, 100])
+		ax.set_xlabel('Various Facebook and Microsoft Clusters')
 		plt.xticks(ind, ['FB-1', 'FB-2', 'FB-3', 'MS-1', 'MS-2', 'MS-3'], fontsize=45)
 		plt.savefig('{}/{}-real_traffic'.format(path, metric))
 
