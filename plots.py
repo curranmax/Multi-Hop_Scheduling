@@ -14,6 +14,12 @@ from runner import DEFAULT_WINDOW_SIZE
 def average(vals):
 	return float(sum(vals)) / float(len(vals))
 
+def min_max(vals):
+	vals = np.array(vals)
+	return (round(vals.min(), 4), round(vals.max(), 4))
+
+reduce_func  = average
+reduce_func2 = min_max
 
 def getMetric(inpt, output, metric = 'percent_packets_delivered'):
 	if metric == 'percent_packets_delivered':
@@ -42,7 +48,8 @@ def y_fmt(tick_val, pos):
 
 METHOD  = ['Octopus', 'Octopus+', 'Octopus-e', 'Eclipse-Based', 'UB',      'Absolute-UB']
 _COLOR  = ['b',       'c',        'gray',      'g',             'orange',  'r']
-_MARKER = ['o',       'h',        's',         '^',             'D',       'P']
+# _MARKER = ['o',       'h',        's',         '^',             'D',       'P']
+_MARKER = ['o',       'o',        'o',         'o',             'o',       'o']
 _LINE   = ['-',       ':',        ':',         ':',             ':',       '-']
 COLOR   = dict(zip(METHOD, _COLOR))
 MARKER  = dict(zip(METHOD, _MARKER))
@@ -50,10 +57,28 @@ LINE    = dict(zip(METHOD, _LINE))
 
 
 
-def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=None, absolute_ub=False):
+def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=None, absolute_ub=False, yerr_table=None):
 	'''
 	Args:
 		table: the same table used by function tabulate.tabulate()
+		  NUN_NODE    octopus-r    upper-bound    eclipse
+		----------  -----------  -------------  ---------
+		        25      48.1263        47.4182    38.6041
+		        50      47.3271        47.0469    29.7168
+		        75      51.8396        51.7936    33.1816
+		       100      52.2284        52.0966    32.3763
+		       125      53.7332        53.7551    33.0334
+		       150      53.8109        53.9773    32.2842
+		
+		yerr_table: the same table used by function tabulate.tabulate()
+		  NUN_NODE  octopus-r           upper-bound         eclipse
+		----------  ------------------  ------------------  ------------------
+		       25   (38.8811, 56.3964)  (35.3078, 55.9665)  (25.491, 51.4077)
+		       50   (45.577, 48.3904)   (46.1241, 48.3337)  (27.5965, 32.0417)
+		       75   (49.7072, 55.2583)  (50.6886, 54.9006)  (30.5833, 37.1484)
+		      100   (51.7271, 53.0539)  (51.4198, 52.9464)  (30.8013, 34.1405)
+		      125   (52.5892, 54.7168)  (52.4997, 54.6874)  (31.7188, 34.7831)
+		      150   (52.2469, 54.7792)  (52.0139, 55.1176)  (29.5608, 33.4454)
 	'''
 	fig, ax = plt.subplots(figsize=(16, 16))
 	fig.subplots_adjust(left=0.2, right=0.96, top=0.8, bottom=0.15)
@@ -66,9 +91,24 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 	for i in range(1, num+1):
 		y = [row[i] for row in table]
 		Y.append(y)
-	for i in range(0, num):
-		method = methods[i]
-		plt.plot(X, Y[i], linestyle=LINE[method], marker=MARKER[method], color=COLOR[method], label=method)
+	
+	# core plotting
+	if yerr_table is None:
+		for i in range(0, num):
+			method = methods[i]
+			plt.plot(X, Y[i], linestyle=LINE[method], marker=MARKER[method], color=COLOR[method], label=method)
+	else:
+		for i in range(0, num):
+			method = methods[i]
+			col = i + 1
+			min_, max_ = [], []
+			for row in yerr_table:
+				min_.append(row[col][0])
+				max_.append(row[col][1])
+			yerr = np.stack((min_, max_))
+			yerr[0] = Y[i] - yerr[0]
+			yerr[1] = yerr[1] - Y[i]
+			plt.errorbar(X, Y[i], yerr=yerr, capsize=15, capthick=3, elinewidth=5, linestyle=LINE[method], marker=MARKER[method], color=COLOR[method], label=method)
 
 	if absolute_ub and y_label == '% of Packets Deliverd':
 		method = 'Absolute-UB'
@@ -78,25 +118,52 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 		if x_label == 'Average # of hops':
 			y = [100, 50, 33]
 			plt.plot(X, y, linestyle=LINE[method], marker=MARKER[method], color=COLOR[method], label=method)
-
+		
 	plt.xticks(X)
 	if x_log:       # log scale on x axis
-		plt.xticks(np.arange(-4, 0, 1), ['1', '10', '100', '1000'], )
+		plt.xticks(np.arange(-4, 0, 1), ['1', '10', '100', '1000'])
 		plt.xlim([-4, -0.9])
 
 	y_min = np.min(np.min(table, 0)[1:]) - 10
 	y_max = 101
 	if y_label == 'Objective Value':   # objective value comes in hundreds of thousands
-		y_min = np.min(np.min(table, 0)[1:])*0.9
-		y_max = np.max(np.max(table, 0)[1:])*1.1
+		y_min_ = np.min(np.min(table, 0)[1:])*0.9
+		y_max_ = np.max(np.max(table, 0)[1:])*1.1
+		y_min = int(100000*(y_min_//100000))
+		y_max = int(100000*(y_max_//100000 + 1))
+		yticks = list(range(y_min, y_max, 100000))
+		plt.yticks(yticks)
 		ax.yaxis.set_major_formatter(tick.FuncFormatter(y_fmt))
 		y_label = y_label + ' ($10^5$)'
+		y_max = int(100000*(y_max_//100000))
+
+	elif y_label == 'Link Utilization (%)' and x_label != 'Various Facebook and Microsoft Clusters':
+		y_min_ = np.min(np.min(table, 0)[1:])*0.9
+		y_max_ = np.max(np.max(table, 0)[1:])*1.1
+		y_min = int(10*(y_min_//10))
+		y_max = int(10*(y_max_//10 + 1))
+		yticks = list(range(y_min, y_max, 10))
+		plt.yticks(yticks)
+		y_max = int(10*(y_max_//10))
+
+	elif y_label == '% of Packets Deliverd' and absolute_ub:
+		y_min_ = np.min(np.min(table, 0)[1:])*0.9
+		y_min = int(10*(y_min_//10))
+		if x_label != 'Average # of hops':
+			y_max = 80
+		if x_label == 'Average # of hops':
+			y_max = 110
+		yticks = list(range(y_min, y_max, 10))
+		plt.yticks(yticks)
+		y_max = 100 if x_label == 'Average # of hops' else 70
 
 	plt.ylim([y_min, y_max])
 	plt.legend(bbox_to_anchor=(-0.1, 1.04), loc='lower left', ncol=2, fontsize=50)
 	ax.tick_params(direction='in', length=15, width=5)
 	ax.tick_params(pad=20)
 
+	if x_label == '# of Nodes':
+		plt.xticks([50, 100, 150, 200, 300])
 	if x_label:
 		ax.set_xlabel(x_label, labelpad=15)
 	if y_label:
@@ -111,12 +178,10 @@ def plot1_1(path):
 	filename = '{}/num_nodes.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['octopus-r', 'upper-bound',  'eclipse']
-	methods_ = ['Octopus',     'UB',         'Eclipse-Based']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
-
-	reduce_func = average
 
 	for i in range(0, len(metric)):
 		table = defaultdict(list)
@@ -124,22 +189,25 @@ def plot1_1(path):
 			table[(inpt.num_nodes)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
 		
 		print_table = [[vs] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		yerr_table  = [[vs] + [reduce_func2([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['NUN_NODE'] + methods)
+		print tabulate.tabulate(yerr_table, headers = ['NUN_NODE'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_num_node'), x_label='# of Nodes', y_label=metric_[i], absolute_ub=True)
+		if metric[i] == 'percent_packets_delivered':
+			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_num_node'), x_label='# of Nodes', y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
+		elif metric[i] == 'link_utilization':
+			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_num_node'), x_label='# of Nodes', y_label=metric_[i], absolute_ub=True, yerr_table=None)
 
 
 def plot1_2(path):
 	filename = '{}/reconfig_delta.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['octopus-r', 'upper-bound', 'eclipse']
-	methods_ = ['Octopus',     'UB',        'Eclipse-Based']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
-
-	reduce_func = average
 
 	for i in range(0, len(metric)):
 		table = defaultdict(list)
@@ -147,22 +215,25 @@ def plot1_2(path):
 			table[(inpt.reconfig_delta)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
 		
 		print_table = [[vs] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		yerr_table  = [[vs] + [reduce_func2([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
+		print tabulate.tabulate(yerr_table, headers = ['DELTA'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_[i], absolute_ub=True)
+		if metric[i] == 'percent_packets_delivered':
+			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
+		elif metric[i] == 'link_utilization':
+			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_[i], absolute_ub=True, yerr_table=None)
 
 
 def plot1_3(path):
 	filename = '{}/skewness.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['octopus-r', 'upper-bound', 'eclipse']
-	methods_ = ['Octopus',     'UB',        'Eclipse-Based']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
-
-	reduce_func = average
 
 	for i in range(0, len(metric)):
 		table = defaultdict(list)
@@ -170,22 +241,24 @@ def plot1_3(path):
 			table[(inpt.cs)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
 		
 		print_table = [[int(vs*100)] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		yerr_table  = [[vs] + [reduce_func2([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['CS'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'skewness'), x_label='% of traffic by small flows', y_label=metric_[i], absolute_ub=True)
+		if metric[i] == 'percent_packets_delivered':
+			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'skewness'), x_label='% of traffic by small flows', y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
+		elif metric[i] == 'link_utilization':
+			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'skewness'), x_label='% of traffic by small flows', y_label=metric_[i], absolute_ub=True, yerr_table=None)
 
 
 def plot1_4(path):
 	filename = '{}/sparsity.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['octopus-r', 'upper-bound', 'eclipse']
-	methods_ = ['Octopus',     'UB',        'Eclipse-Based']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
-
-	reduce_func = average
 
 	for i in range(0, len(metric)):
 		table = defaultdict(list)
@@ -193,10 +266,14 @@ def plot1_4(path):
 			table[(inpt.nl, inpt.ns)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
 		
 		print_table = [[int(vs[0])+int(vs[1])] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		yerr_table  = [[vs] + [reduce_func2([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['NL+NS'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'sparsity'), x_label='flows per node', y_label=metric_[i], absolute_ub=True)
+		if metric[i] == 'percent_packets_delivered':
+			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'sparsity'), x_label='flows per node', y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
+		elif metric[i] == 'link_utilization':
+			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'sparsity'), x_label='flows per node', y_label=metric_[i], absolute_ub=True, yerr_table=None)
 
 
 def plot2_1(path):
@@ -205,8 +282,6 @@ def plot2_1(path):
 	methods  = ['octopus-r', 'upper-bound', 'eclipse']
 	metrics  = ['percent_packets_delivered']
 	metrics_ = ['% of Packets Deliverd']
-
-	reduce_func = average
 
 	for metric, metric_ in zip(metrics, metrics_):
 		table = defaultdict(list)
@@ -252,8 +327,6 @@ def plot2_2(path):
 	metrics  = ['link_utilization']
 	metrics_ = ['Link Utilization (%)']
 
-	reduce_func = average
-
 	for metric, metric_ in zip(metrics, metrics_):
 		table = defaultdict(list)
 		for inpt, output_by_method in data:
@@ -283,7 +356,7 @@ def plot2_2(path):
 		plt.legend(bbox_to_anchor=(0, 1.04), loc='lower left', ncol=4, fontsize=45)
 		ax.tick_params(axis='y', direction='in', length=10, width=3, pad=15)
 		ax.set_ylabel(metric_)
-		ax.set_ylim([0, 100])
+		ax.set_ylim([0, 80])
 		ax.set_xlabel('Various Facebook and Microsoft Clusters')
 		plt.xticks(ind, ['FB-1', 'FB-2', 'FB-3', 'MS-1', 'MS-2', 'MS-3'], fontsize=45)
 		plt.savefig('{}/{}-real_traffic'.format(path, metric))
@@ -295,8 +368,6 @@ def plot2_(path, file):
 	methods  = ['octopus-r', 'split']
 	metrics  = ['percent_packets_delivered']
 	metrics_ = ['% of Packets Deliverd']
-
-	reduce_func = average
 
 	for metric, metric_ in zip(metrics, metrics_):
 		table = defaultdict(list)
@@ -338,8 +409,6 @@ def plot3(path):
 	metric   = ['percent_objective_value']
 	metric_  = [ 'Packets Del. as a % of $\\psi$']
 
-	reduce_func = average
-
 	for i in range(0, len(metric)):
 		table = defaultdict(list)
 		for inpt, output_by_method in data:
@@ -361,8 +430,6 @@ def plot4(path):
 	metric   = ['percent_packets_delivered']
 	metric_  = ['% of Packets Deliverd']
 
-	reduce_func = average
-
 	for i in range(0, len(metric)):
 		table = defaultdict(list)
 		for inpt, output_by_method in data:
@@ -383,8 +450,6 @@ def plot5(path):
 	methods_ = ['Octopus',   'UB',          'Octopus-e']
 	metrics   = ['percent_packets_delivered', 'objective_value']
 	metrics_  = ['% of Packets Deliverd', 'Objective Value']
-
-	reduce_func = average
 
 	for metric, metric_ in zip(metrics, metrics_):
 		table = defaultdict(list)
@@ -408,14 +473,14 @@ if __name__ == '__main__':
 
 	path = 'data/6-23'
 
-	# plot1_1(path)  # num of nodes
-	# plot1_2(path)  # reconfig delta
-	# plot1_3(path)  # skewness
-	# plot1_4(path)  # sparsity
-	# plot2_1(path)    # real traffic
+	plot1_1(path)  # num of nodes
+	plot1_2(path)  # reconfig delta
+	plot1_3(path)  # skewness
+	plot1_4(path)  # sparsity
+	plot2_1(path)    # real traffic
 	plot2_2(path)    # real traffic
-	# plot3(path)    # reconfig delta + percentage objective value
-	# plot4(path)    # reconfig delta + octopus+/R
-	# plot5(path)    # average hop count
+	plot3(path)    # reconfig delta + objective value
+	plot4(path)    # reconfig delta + octopus+/R
+	plot5(path)    # average hop count
 
 	# plot2_(path, 'real_traffic-10-merge')    # real traffic
