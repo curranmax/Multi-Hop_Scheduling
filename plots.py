@@ -163,7 +163,7 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 	ax.tick_params(pad=20)
 
 	if x_label == '# of Nodes':
-		plt.xticks([50, 100, 150, 200, 300])
+		plt.xticks([25, 50, 100, 150, 200, 300])
 	if x_label:
 		ax.set_xlabel(x_label, labelpad=15)
 	if y_label:
