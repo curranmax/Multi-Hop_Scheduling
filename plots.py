@@ -40,10 +40,10 @@ def y_fmt(tick_val, pos):
 
 
 
-METHOD  = ['Octopus', 'Octopus+', 'Octopus-e', 'Eclipse-Based', 'UB', 'Absolute-UB']
-_COLOR  = ['b',       'c',        'm',         'r',             'g',  'orange']
-_MARKER = ['o',       'h',        's',         '^',             'D',  'P']
-_LINE   = ['-',       '--',       '-',         ':',             '--', '-.']
+METHOD  = ['Octopus', 'Octopus+', 'Octopus-e', 'Eclipse-Based', 'UB',      'Absolute-UB']
+_COLOR  = ['b',       'c',        'gray',      'g',             'orange',  'r']
+_MARKER = ['o',       'h',        's',         '^',             'D',       'P']
+_LINE   = ['-',       ':',        ':',         ':',             ':',       '-']
 COLOR   = dict(zip(METHOD, _COLOR))
 MARKER  = dict(zip(METHOD, _MARKER))
 LINE    = dict(zip(METHOD, _LINE))
@@ -240,7 +240,7 @@ def plot2_1(path):
 		plt.legend(bbox_to_anchor=(-0.18, 1.04), loc='lower left', ncol=4, fontsize=45)
 		ax.tick_params(axis='y', direction='in', length=10, width=3, pad=15)
 		ax.set_ylabel(metric_)
-		ax.set_xlabel('Varies Clusters')
+		ax.set_xlabel('Various Facebook and Microsoft Clusters')
 		plt.xticks(ind, ['FB-1', 'FB-2', 'FB-3', 'MS-1', 'MS-2', 'MS-3'], fontsize=45)
 		plt.savefig('{}/{}-real_traffic'.format(path, metric))
 
@@ -335,7 +335,7 @@ def plot3(path):
 	methods  = ['octopus-r', 'upper-bound', 'eclipse']
 	methods_ = ['Octopus',     'UB',          'Eclipse-Based']
 	metric   = ['percent_objective_value']
-	metric_  = [ '(Packet Deliver)/(Obj. $\\psi$)']
+	metric_  = [ 'Packets Del. as a % of $\\psi$']
 
 	reduce_func = average
 
