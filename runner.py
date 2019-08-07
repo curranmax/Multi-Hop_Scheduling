@@ -449,10 +449,11 @@ if __name__ == '__main__':
 			# num_large = [1,  2,  3,  4,   5,   6 ]
 			# num_small = [3,  6,  9,  12,  15,  18]
 			
-			num_nodes = [25, 200, 300]
-			num_large = [1,  8,   12]
-			num_small = [3,  24,  36]
-			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
+			num_nodes = [25, 50]
+			num_large = [1, 2]
+			num_small = [3, 6]
+			# methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
+			methods   = ['octopus-r', 'upper-bound', 'eclipse']
 			
 			for nn, nl, ns in zip(num_nodes, num_large, num_small):
 				inputs.append(Input(num_nodes = nn, nl = nl, ns = ns, methods = methods, out_file = out_file.format('num_nodes'), key_value = 'num_nodes'))
