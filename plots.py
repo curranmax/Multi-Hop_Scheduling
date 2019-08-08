@@ -180,7 +180,7 @@ def plot1_1(path):
 	data = runner.readDataFromFile(filename.format(path))
 
 	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB', 'Octopus-b']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -205,8 +205,8 @@ def plot1_2(path):
 	filename = '{}/reconfig_delta.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -231,8 +231,8 @@ def plot1_3(path):
 	filename = '{}/skewness.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -256,8 +256,8 @@ def plot1_4(path):
 	filename = '{}/sparsity.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -474,10 +474,10 @@ if __name__ == '__main__':
 
 	path = 'data/6-23'
 
-	plot1_1(path)  # num of nodes
+	# plot1_1(path)  # num of nodes
 	# plot1_2(path)  # reconfig delta
 	# plot1_3(path)  # skewness
-	# plot1_4(path)  # sparsity
+	plot1_4(path)  # sparsity
 	# plot2_1(path)    # real traffic
 	# plot2_2(path)    # real traffic
 	# plot3(path)    # reconfig delta + objective value
