@@ -488,8 +488,8 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, se
 			max_ov = max(objective_values)
 			max_inds = [i for i, ov in enumerate(objective_values) if abs(max_ov - ov) < 0.0000000001]
 
-			if len(max_inds) != 1:
-				raise Exception('Unexpected values')
+			# if len(max_inds) != 1:
+			# 	raise Exception('Unexpected values')
 
 			max_ind = max_inds[0]
 
