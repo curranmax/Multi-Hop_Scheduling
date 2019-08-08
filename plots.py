@@ -139,7 +139,7 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 		y_max = int(100000*(y_max_//100000))
 
 	elif y_label == 'Link Utilization (%)' and x_label != 'Various Facebook and Microsoft Clusters':
-		y_min_ = np.min(np.min(table, 0)[1:])*0.9
+		y_min_ = np.min(np.min(table, 0)[1:])*0.85
 		y_max_ = np.max(np.max(table, 0)[1:])*1.1
 		y_min = int(10*(y_min_//10))
 		y_max = int(10*(y_max_//10 + 1))
@@ -199,10 +199,8 @@ def plot1_1(path):
 		print tabulate.tabulate(print_table, headers = ['NUN_NODE'] + methods)
 		print tabulate.tabulate(yerr_table, headers = ['NUN_NODE'] + methods)
 		print ''
-		if metric[i] == 'percent_packets_delivered':
-			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_num_node'), x_label='# of Nodes', y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
-		elif metric[i] == 'link_utilization':
-			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_num_node'), x_label='# of Nodes', y_label=metric_[i], absolute_ub=True, yerr_table=None)
+		
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_num_node'), x_label='# of Nodes', y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
 
 
 def plot1_2(path):
@@ -225,10 +223,8 @@ def plot1_2(path):
 		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
 		print tabulate.tabulate(yerr_table, headers = ['DELTA'] + methods)
 		print ''
-		if metric[i] == 'percent_packets_delivered':
-			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
-		elif metric[i] == 'link_utilization':
-			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_[i], absolute_ub=True, yerr_table=None)
+
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
 
 
 def plot1_3(path):
@@ -250,10 +246,8 @@ def plot1_3(path):
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['CS'] + methods)
 		print ''
-		if metric[i] == 'percent_packets_delivered':
-			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'skewness'), x_label='% of traffic by small flows', y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
-		elif metric[i] == 'link_utilization':
-			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'skewness'), x_label='% of traffic by small flows', y_label=metric_[i], absolute_ub=True, yerr_table=None)
+
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'skewness'), x_label='% of traffic by small flows', y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
 
 
 def plot1_4(path):
@@ -275,10 +269,8 @@ def plot1_4(path):
 		print metric[i]
 		print tabulate.tabulate(print_table, headers = ['NL+NS'] + methods)
 		print ''
-		if metric[i] == 'percent_packets_delivered':
-			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'sparsity'), x_label='flows per node', y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
-		elif metric[i] == 'link_utilization':
-			plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'sparsity'), x_label='flows per node', y_label=metric_[i], absolute_ub=True, yerr_table=None)
+
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'sparsity'), x_label='flows per node', y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
 
 
 def plot2_1(path):
@@ -503,12 +495,12 @@ if __name__ == '__main__':
 	# plot1_1(path)  # num of nodes
 	# plot1_2(path)  # reconfig delta
 	# plot1_3(path)  # skewness
-	# plot1_4(path)  # sparsity
+	plot1_4(path)  # sparsity
 	# plot2_1(path)    # real traffic
 	# plot2_2(path)    # real traffic
 	# plot3(path)    # reconfig delta + objective value
 	# plot4(path)    # reconfig delta + octopus+/R
 	# plot5(path)    # average hop count
-	plot_7(path)     # Octopus-B
+	# plot_7(path)     # Octopus-B
 
 	# plot2_(path, 'real_traffic-10-merge')    # real traffic
