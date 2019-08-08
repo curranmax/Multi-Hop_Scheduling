@@ -178,8 +178,8 @@ def plot1_1(path):
 	filename = '{}/num_nodes.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB', 'Octopus-b']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -474,13 +474,13 @@ if __name__ == '__main__':
 	path = 'data/6-23'
 
 	plot1_1(path)  # num of nodes
-	plot1_2(path)  # reconfig delta
-	plot1_3(path)  # skewness
-	plot1_4(path)  # sparsity
-	plot2_1(path)    # real traffic
-	plot2_2(path)    # real traffic
-	plot3(path)    # reconfig delta + objective value
-	plot4(path)    # reconfig delta + octopus+/R
-	plot5(path)    # average hop count
+	# plot1_2(path)  # reconfig delta
+	# plot1_3(path)  # skewness
+	# plot1_4(path)  # sparsity
+	# plot2_1(path)    # real traffic
+	# plot2_2(path)    # real traffic
+	# plot3(path)    # reconfig delta + objective value
+	# plot4(path)    # reconfig delta + octopus+/R
+	# plot5(path)    # average hop count
 
 	# plot2_(path, 'real_traffic-10-merge')    # real traffic

@@ -199,8 +199,11 @@ class Output:
 		self.packets_not_delivered = int(packets_not_delivered)
 		self.time_slots_used       = int(time_slots_used)
 		self.time_slots_not_used   = int(time_slots_not_used)
-
-		self.computation_duration = float(computation_duration)
+		
+		if computation_duration is None:
+			self.computation_duration = 0
+		else:
+			self.computation_duration = float(computation_duration)
 
 		if isinstance(packets_by_tag, dict):
 			self.packets_by_tag = packets_by_tag
