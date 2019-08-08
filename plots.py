@@ -168,7 +168,7 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 	ax.tick_params(pad=20)
 
 	if x_label == '# of Nodes':
-		plt.xticks([25, 50, 100, 150, 200, 300])
+		plt.xticks([25, 50, 100, 150, 200, 250, 300])
 	if x_label:
 		ax.set_xlabel(x_label, labelpad=15)
 	if y_label:
@@ -492,10 +492,10 @@ if __name__ == '__main__':
 
 	path = 'data/6-23'
 
-	# plot1_1(path)  # num of nodes
+	plot1_1(path)  # num of nodes
 	# plot1_2(path)  # reconfig delta
 	# plot1_3(path)  # skewness
-	plot1_4(path)  # sparsity
+	# plot1_4(path)  # sparsity
 	# plot2_1(path)    # real traffic
 	# plot2_2(path)    # real traffic
 	# plot3(path)    # reconfig delta + objective value
