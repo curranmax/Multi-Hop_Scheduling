@@ -12,9 +12,11 @@ from runner import DEFAULT_WINDOW_SIZE
 
 
 def average(vals):
+	vals = list(filter(None, vals))  # filter out the None values
 	return float(sum(vals)) / float(len(vals))
 
 def min_max(vals):
+	vals = list(filter(None, vals))  # filter out the None values
 	vals = np.array(vals)
 	return (round(vals.min(), 4), round(vals.max(), 4))
 
@@ -44,13 +46,12 @@ def y_fmt(tick_val, pos):
     else:
         return tick_val
 
-
-
-METHOD  = ['Octopus', 'Octopus+', 'Octopus-e', 'Eclipse-Based', 'UB',      'Absolute-UB']
-_COLOR  = ['b',       'c',        'gray',      'g',             'orange',  'r']
 # _MARKER = ['o',       'h',        's',         '^',             'D',       'P']
-_MARKER = ['o',       'o',        'o',         'o',             'o',       'o']
-_LINE   = ['-',       ':',        ':',         ':',             ':',       '-']
+
+METHOD  = ['Octopus', 'Octopus+', 'Octopus-e', 'Octopus-b', 'Eclipse-Based', 'UB',      'Absolute-UB']
+_COLOR  = ['b',       'c',        'gray',      'k',         'g',             'orange',  'r']
+_MARKER = ['o',       'o',        'o',         'o',         'o',             'o',       'o']
+_LINE   = ['-',       ':',        ':',         '-',         ':',             ':',       '-']
 COLOR   = dict(zip(METHOD, _COLOR))
 MARKER  = dict(zip(METHOD, _MARKER))
 LINE    = dict(zip(METHOD, _LINE))
