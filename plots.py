@@ -48,10 +48,10 @@ def y_fmt(tick_val, pos):
 
 # _MARKER = ['o',       'h',        's',         '^',             'D',       'P']
 
-METHOD  = ['Octopus', 'Octopus+', 'Octopus-e', 'Octopus-b', 'Eclipse-Based', 'UB',      'Absolute-UB']
-_COLOR  = ['b',       'c',        'gray',      'k',         'g',             'orange',  'r']
-_MARKER = ['o',       'o',        'o',         'o',         'o',             'o',       'o']
-_LINE   = ['-',       ':',        ':',         '-',         ':',             ':',       '-']
+METHOD  = ['Octopus-Random', 'Octopus', 'Octopus+', 'Octopus-e', 'Octopus-B', 'Eclipse-Based', 'UB',      'Absolute-UB']
+_COLOR  = ['b',              'b',       'c',        'gray',      'k',         'g',             'orange',  'r']
+_MARKER = ['o',              'o',       'o',        'o',         'o',         'o',             'o',       'o']
+_LINE   = ['-',              '-',       ':',        ':',         ':',         ':',             ':',       '-']
 COLOR   = dict(zip(METHOD, _COLOR))
 MARKER  = dict(zip(METHOD, _MARKER))
 LINE    = dict(zip(METHOD, _LINE))
@@ -157,9 +157,13 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 		yticks = list(range(y_min, y_max, 10))
 		plt.yticks(yticks)
 		y_max = 100 if x_label == 'Average # of hops' else 70
-
+	
+	box_to_anchor = (-0.1, 1.04)
+	if 'Octopus-Random' in methods:
+		box_to_anchor = (-0.24, 1.04)
+	
 	plt.ylim([y_min, y_max])
-	plt.legend(bbox_to_anchor=(-0.1, 1.04), loc='lower left', ncol=2, fontsize=50)
+	plt.legend(bbox_to_anchor=box_to_anchor, loc='lower left', ncol=2, fontsize=50)
 	ax.tick_params(direction='in', length=15, width=5)
 	ax.tick_params(pad=20)
 
@@ -179,8 +183,8 @@ def plot1_1(path):
 	filename = '{}/num_nodes.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -205,8 +209,8 @@ def plot1_2(path):
 	filename = '{}/reconfig_delta.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -231,8 +235,8 @@ def plot1_3(path):
 	filename = '{}/skewness.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -256,8 +260,8 @@ def plot1_4(path):
 	filename = '{}/sparsity.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -426,8 +430,8 @@ def plot4(path):
 	filename = '{}/octopus.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['octopus-r', 'octopus+']
-	methods_ = ['Octopus',     'Octopus+']
+	methods  = ['octopus-r',      'octopus+']
+	methods_ = ['Octopus-Random', 'Octopus+']
 	metric   = ['percent_packets_delivered']
 	metric_  = ['% of Packets Deliverd']
 
@@ -464,6 +468,28 @@ def plot5(path):
 		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric, 'vary_hop_count'), x_label='Average # of hops', y_label=metric_, absolute_ub=True)
 
 
+def plot_7(path):
+	filenames = ['{}/reconfig_delta.txt']
+	data = sum((runner.readDataFromFile(filename.format(path)) for filename in filenames), [])
+
+	methods  = ['octopus-r', 'octopus-b']
+	methods_ = ['Octopus',   'Octopus-B']
+	metrics   = ['percent_packets_delivered']
+	metrics_  = ['% of Packets Deliverd']
+
+	for metric, metric_ in zip(metrics, metrics_):
+		table = defaultdict(list)
+		for inpt, output_by_method in data:
+			table[(inpt.reconfig_delta)].append({method: getMetric(inpt, output, metric=metric) for method, output in output_by_method.iteritems()})
+		
+		print_table = [[vs] + [reduce_func([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		print metric
+		print tabulate.tabulate(print_table, headers = ['MIN_ROUTE'] + methods)
+		print ''
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric, 'vary_delta-oct_binary'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_, absolute_ub=True)
+
+
+
 if __name__ == '__main__':
 	
 	plt.rcParams['font.size'] = 60
@@ -477,11 +503,12 @@ if __name__ == '__main__':
 	# plot1_1(path)  # num of nodes
 	# plot1_2(path)  # reconfig delta
 	# plot1_3(path)  # skewness
-	plot1_4(path)  # sparsity
+	# plot1_4(path)  # sparsity
 	# plot2_1(path)    # real traffic
 	# plot2_2(path)    # real traffic
 	# plot3(path)    # reconfig delta + objective value
 	# plot4(path)    # reconfig delta + octopus+/R
 	# plot5(path)    # average hop count
+	plot_7(path)     # Octopus-B
 
 	# plot2_(path, 'real_traffic-10-merge')    # real traffic
