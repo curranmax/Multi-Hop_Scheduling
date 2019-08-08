@@ -471,7 +471,7 @@ if __name__ == '__main__':
 			num_small = [3, 6, 9, 12, 15, 18, 21, 24]
 
 			# methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e', 'octopus-b']
-			methods = ['ocotopus-b']
+			methods = ['octopus-b']
 
 			for nl, ns in zip(num_large, num_small):
 				inputs.append(Input(nl = nl, ns = ns, methods = methods, out_file = out_file.format('sparsity'), key_value = 'nl'))
