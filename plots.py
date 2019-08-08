@@ -486,7 +486,7 @@ def plot_7(path):
 		print metric
 		print tabulate.tabulate(print_table, headers = ['MIN_ROUTE'] + methods)
 		print ''
-		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric, 'vary_delta-oct_binary'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_, absolute_ub=True)
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, 'octopus', 'binary'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_, absolute_ub=True)
 
 
 
