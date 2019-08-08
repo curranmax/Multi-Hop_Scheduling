@@ -6,6 +6,7 @@ import copy
 import networkx as nx
 import numpy as np
 import scipy.optimize as scipy_opt
+import time
 
 # MAX_WEIGHT_MATCHING_LIBRARY = 'networkx'
 MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
@@ -63,13 +64,16 @@ def combineSchedules(schedules):
 
 # Holds the different metrics for the result of one run
 class ResultMetric:
-	def __init__(self, total_objective_value, packets_delivered, packets_not_delivered, total_duration, time_slots_used, time_slots_not_used, packets_delivered_by_tag = None):
+	def __init__(self, total_objective_value, packets_delivered, packets_not_delivered, total_duration, time_slots_used, time_slots_not_used, packets_delivered_by_tag = None, computation_duration = 0.0):
 		self.total_objective_value = total_objective_value
 		self.packets_delivered     = packets_delivered
 		self.packets_not_delivered = packets_not_delivered
 		self.total_duration        = total_duration
 		self.time_slots_used       = time_slots_used
 		self.time_slots_not_used   = time_slots_not_used
+
+		# Time it took to compute this result. Value in seconds
+		self.computation_duration = computation_duration
 
 		if packets_delivered_by_tag is not None and len(packets_delivered_by_tag) > 0:
 			self.packets_delivered_by_tag = packets_delivered_by_tag
@@ -86,6 +90,8 @@ class ResultMetric:
 		print 'time_slots_used|'       + str(self.time_slots_used)
 		print 'time_slots_not_used|'   + str(self.time_slots_not_used)
 
+		print 'computation_duration|' + str(self.computation_duration)
+
 		if self.packets_delivered_by_tag is not None and len(self.packets_delivered_by_tag) > 0:
 			print 'packets_by_tag|' + ','.join(map(lambda x: str(x[0]) + '=' + str(x[1]) , self.packets_delivered_by_tag.iteritems()))
 
@@ -101,7 +107,8 @@ class ResultMetric:
 				('' if self.packets_delivered_by_tag is None else 'Packets delivered by tag: ' + str(self.packets_delivered_by_tag) + ', ') + \
 				'Time Slots Used: ' + str(self.time_slots_used) + ', ' + \
 				'Time Slots Unused: ' + str(self.time_slots_not_used) + ', ' + \
-				'Link Utilization: ' + str(self.getLinkUtilization() * 100.0) + ' %}'
+				'Link Utilization: ' + str(self.getLinkUtilization() * 100.0) + ' %, ' + \
+				'Computation Duration: ' + str(self.computation_duration) + ' seconds}'
 
 # Holds a subflow of a input_utils.Flow
 class SubFlow:
@@ -382,18 +389,55 @@ def filterAlphas(alphas, total_duration_so_far, num_matchings, window_size, reco
 	Profiler.end('filterAlphas')
 	return new_alphas
 
+# Computes the optimal matching for the given value of alpha.
+# Input:
+#   subflows_by_next_hop --> All subflows grouped by their next hop. SubFlows in each group are sorted from shortest to longest with flow.id as a tiebreak. Must be a dict with keys of (curNode(), nextNode()) and value of list of SubFlow.
+#   alpha --> Duration of matching
+#   num_nodes --> The number of nodes in the network
+#   all_weights --> weight of edges in the graph
+# Output:
+#   matching --> Optimal matching
+#   matching_weight --> weight of the optimal matching
+def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
+	# Creates the graph for the given alpha
+	graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, all_weights, max_weight_matching_library = max_weight_matching_library)
+
+	# Find the maximum weight matching of the graph using a 3rd party library
+	if max_weight_matching_library is 'networkx':
+		Profiler.start('networkx.max_weight_matching')
+		matching = nx.algorithms.matching.max_weight_matching(graph)
+		Profiler.end('networkx.max_weight_matching')
+
+		matching_weight = sum(graph[a][b]['weight'] for a, b in matching)
+	elif max_weight_matching_library is 'scipy':
+		Profiler.start('scipy.optimize.linear_sum_assignment')
+		matching = scipy_opt.linear_sum_assignment(-graph)
+		Profiler.end('scipy.optimize.linear_sum_assignment')
+
+		matching_weight = graph[matching[0], matching[1]].sum()
+	else:
+		raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
+
+	matching = convertMatching(graph, matching, num_nodes, max_weight_matching_library = max_weight_matching_library)
+
+	return matching, matching_weight
+
 # Finds the matching and alpha that maximizes sum of weights of the matching / (alpha + reconfig_delta)
 # Input:
 #   subflows_by_next_hop --> All subflows grouped by their next hop. SubFlows in each group are sorted from shortest to longest with flow.id as a tiebreak. Must be a dict with keys of (curNode(), nextNode()) and value of list of SubFlow.
 #   alphas --> Set of all alpha values to try
 #   num_nodes --> The number of nodes in the network
 #   reconfig_delta --> the reconfiguraiton delta of the network
+#   search_method --> Search method to find the best alpha. Must be either 'iterative' or 'search'
 # Output:
 #   best_objective_value --> The objective value of the best matching and alpha. (i.e. total weight of matching / (alpha + reconfig_delta))
 #   best_matching_weight --> The total weight of the matching that maximizes the objective.
 #   best_alpha --> The best alpha found
 #   best_matching --> The best matching found. It is a set of (src, dst) edges.
-def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
+def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = 'iterative',  max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
+	if search_method not in ['iterative', 'search']:
+		raise Exception('Unexpected search_method: ' + str(search_method))
+
 	Profiler.start('findBestMatching')
 
 	best_objective_value = None
@@ -404,36 +448,72 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, ma
 	# Calculates weights for all edges and alphas at once
 	all_weights_by_alpha = calculateAllWeights(subflows_by_next_hop, alphas)
 
-	# Tries all alpha values in alphas and finds the maximum weighted matching in each
-	for alpha in sorted(alphas):
-		# Creates the graph for the given alpha
-		graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, all_weights_by_alpha[alpha], max_weight_matching_library = max_weight_matching_library)
+	# Tries all values of alpha
+	if search_method == 'iterative':
+		# Tries all alpha values in alphas and finds the maximum weighted matching in each
+		for alpha in sorted(alphas):
+			matching, matching_weight = getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights_by_alpha[alpha], max_weight_matching_library = max_weight_matching_library)
 
-		# Find the maximum weight matching of the graph using a 3rd party library
-		if max_weight_matching_library is 'networkx':
-			Profiler.start('networkx.max_weight_matching')
-			matching = nx.algorithms.matching.max_weight_matching(graph)
-			Profiler.end('networkx.max_weight_matching')
+			# Track the graph that maximizes value(G) / (alpha + reconfig_delta)
+			this_objective_value = matching_weight / (alpha + reconfig_delta)
+			if best_objective_value is None or this_objective_value > best_objective_value:
+				best_objective_value = this_objective_value
+				best_matching_weight = matching_weight
+				best_alpha           = alpha
+				best_matching        = matching
 
-			matching_weight = sum(graph[a][b]['weight'] for a, b in matching)
-		elif max_weight_matching_library is 'scipy':
-			Profiler.start('scipy.optimize.linear_sum_assignment')
-			matching = scipy_opt.linear_sum_assignment(-graph)
-			Profiler.end('scipy.optimize.linear_sum_assignment')
+	# Does a search that tries only a limited number of alphas
+	if search_method == 'search':
+		num_queries = 4
+		low_ind  = 0
+		high_ind = len(alphas) - 1
+		list_alphas = sorted(list(alphas))
+		matchings_by_alpha = {alpha: None for alpha in list_alphas}
 
-			matching_weight = graph[matching[0], matching[1]].sum()
-		else:
-			raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
+		while True:
+			query_inds = sorted(list(set(int(float(high_ind - low_ind) / float(num_queries - 1) * i + low_ind) for i in range(num_queries))))
+			is_last_iter = all(a + 1 == b for a, b in zip(query_inds[:-1], query_inds[1:]))
 
-		matching = convertMatching(graph, matching, num_nodes, max_weight_matching_library = max_weight_matching_library)
+			objective_values = []
+			for qi in query_inds:
+				this_alpha = list_alphas[qi]
 
-		# Track the graph that maximizes value(G) / (alpha + reconfig_delta)
-		this_objective_value = matching_weight / (alpha + reconfig_delta)
-		if best_objective_value is None or this_objective_value > best_objective_value:
-			best_objective_value = this_objective_value
-			best_matching_weight = matching_weight
-			best_alpha           = alpha
-			best_matching        = matching
+				if matchings_by_alpha[this_alpha] is None:
+					matching, matching_weight = getMatching(subflows_by_next_hop, this_alpha, num_nodes, all_weights_by_alpha[this_alpha], max_weight_matching_library = max_weight_matching_library)
+					
+					matchings_by_alpha[this_alpha] = (matching, matching_weight)
+
+				objective_values.append(matchings_by_alpha[this_alpha][1] / (this_alpha + reconfig_delta))
+
+			max_ov = max(objective_values)
+			max_inds = [i for i, ov in enumerate(objective_values) if abs(max_ov - ov) < 0.0000000001]
+
+			# if len(max_inds) != 1:
+			# 	raise Exception('Unexpected values')
+
+			max_ind = max_inds[0]
+
+			if is_last_iter:
+				this_alpha = list_alphas[query_inds[max_ind]]
+
+				best_objective_value = objective_values[max_ind]
+				best_matching_weight = matchings_by_alpha[this_alpha][1]
+				best_alpha           = this_alpha
+				best_matching        = matchings_by_alpha[this_alpha][0]
+
+				break
+
+			if max_ind == 0:
+				low_ind  = query_inds[0]
+				high_ind = query_inds[1]
+
+			elif max_ind == len(query_inds) - 1:
+				low_ind  = query_inds[-2]
+				high_ind = query_inds[-1]
+
+			else:
+				low_ind  = query_inds[max_ind - 1]
+				high_ind = query_inds[max_ind + 1]
 
 	Profiler.end('findBestMatching')
 	return best_objective_value, best_matching_weight, best_alpha, best_matching
@@ -619,11 +699,12 @@ def updateSubFlows(subflows, alpha, track_updated_subflows = False):
 #   return_packets_delivered_by_flow_id --> If given, the number of packets delivered for each flow
 #   flows_have_given_invweight --> If given, then flows has values of (input_utils.Flow, invweight) instead of just input_utils.Flow
 #   precomputed_schedule --> If given, uses the given schedule instead of computed maximum weight matchings
+#   alpha_search_method --> Method used to find the optimal alpha. Must be either 'iterative' or 'search'
 # Output:
 #   schedule --> The computed schedule, containing the matchings and durations
 #   result_metric --> Holds the various metrics to judge the algorithm
 #   (Optional) completed_flow_ids --> List of flow_ids of subflows that reach their destination
-def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound = False, return_packets_delivered_by_flow_id = False, flows_have_given_invweight = False, precomputed_schedule = None, consider_all_routes = False, backtrack = False, verbose = False):
+def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound = False, return_packets_delivered_by_flow_id = False, flows_have_given_invweight = False, precomputed_schedule = None, consider_all_routes = False, backtrack = False, alpha_search_method = 'iterative', verbose = False):
 	Profiler.start('computeSchedule')
 	# TODO Check that the set of flags are consistent
 
@@ -664,6 +745,9 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 
 		precomputed_schedule_ind = 0
 
+	# Used to measure computation time
+	compute_start = time.time()
+	
 	while schedule.totalDuration(reconfig_delta) < window_size:
 		if verbose:
 			print 'Starting iteration with', window_size - schedule.totalDuration(reconfig_delta), 'time left'
@@ -714,7 +798,7 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 			alphas = filterAlphas(alphas, schedule.totalDuration(reconfig_delta), schedule.numMatchings(), window_size, reconfig_delta)
 
 			# Track the best alpha and matching
-			objective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta)
+			objective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = alpha_search_method)
 
 		else:
 			# Get next matching and alpha from precomputed_schedule
@@ -1010,6 +1094,10 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 		Profiler.end('computeSchedule-updateAllSubflows')
 		Profiler.end('computeSchedule-iteration')
 
+	# Used to measure computation time
+	compute_end = time.time()
+	compute_dur = compute_end - compute_start
+
 	# Compute result metrics
 	total_objective_value = schedule.getTotalMatchingWeight()
 
@@ -1066,7 +1154,7 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 	# Add in reconfiguration delay to unused time slots
 	time_slots_not_used += reconfig_delta * num_nodes * schedule.numReconfigs()
 
-	result_metric = ResultMetric(total_objective_value, packets_delivered, packets_not_delivered, window_size, time_slots_used, time_slots_not_used, packets_delivered_by_tag = packets_delivered_by_tag)
+	result_metric = ResultMetric(total_objective_value, packets_delivered, packets_not_delivered, window_size, time_slots_used, time_slots_not_used, packets_delivered_by_tag = packets_delivered_by_tag, computation_duration = compute_dur)
 
 	rvs = [schedule, result_metric]
 

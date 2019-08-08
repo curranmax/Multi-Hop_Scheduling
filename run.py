@@ -9,7 +9,7 @@ import argparse
 import random
 
 INPUT_SOURCES = ['test', 'microsoft', 'sigmetrics', 'facebook']
-METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+', 'octopus-e']
+METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus-b', 'octopus+', 'octopus-e']
 
 
 def boolFromStr(val):
@@ -105,7 +105,8 @@ if __name__ == '__main__':
 
 	# Data based on real measurements
 	if input_source in ['microsoft', 'sigmetrics', 'facebook']:
-		traffic = input_utils.Traffic(num_nodes = num_nodes, max_hop = max_route_length, window_size = window_size, num_routes = num_routes, min_route_length = min_route_length, random_seed = int(time()))
+		random_seed = int(time())
+		traffic = input_utils.Traffic(num_nodes = num_nodes, max_hop = max_route_length, window_size = window_size, num_routes = num_routes, min_route_length = min_route_length, random_seed = random_seed)
 
 	if input_source == 'sigmetrics':
 		args = {'c_l': capa_large, 'n_l': num_large, 'c_s': capa_small, 'n_s': num_small}
@@ -247,6 +248,9 @@ if __name__ == '__main__':
 			orig_eps = algos.setUseEps(True)
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, verbose = verbose)
 			algos.setUseEps(orig_eps)
+
+		if method == 'octopus-b':
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, alpha_search_method = 'search', verbose = verbose)
 
 		results[method] = (schedule, result_metric)
 

@@ -16,7 +16,7 @@ DEFAULT_RECONFIG_DELTA   = 20
 DEFAULT_NUM_ROUTES       = 10
 DEFAULT_USE_EPS          = False
 DEFAULT_INPUT_SOURCE     = 'sigmetrics'
-DEFAULT_METHODS          = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+', 'octopus-e']
+DEFAULT_METHODS          = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+', 'octopus-e', 'octopus-b']
 DEFAULT_NL               = 4    # number of large flows   (for sigmetrics only)
 DEFAULT_NS               = 12   # number of small flows   (for sigmetrics only)
 DEFAULT_CL               = 0.7  # capacity of large flows (for sigmetrics only)
@@ -190,7 +190,8 @@ class Output:
 						packets_not_delivered = None,
 						time_slots_used = None,
 						time_slots_not_used = None,
-						packets_by_tag = None):
+						packets_by_tag = None,
+						computation_duration = None):
 
 		# Note that values are require for parameters being directly converted to floats and ints
 		self.total_objective_value = float(total_objective_value)
@@ -198,6 +199,8 @@ class Output:
 		self.packets_not_delivered = int(packets_not_delivered)
 		self.time_slots_used       = int(time_slots_used)
 		self.time_slots_not_used   = int(time_slots_not_used)
+
+		self.computation_duration = float(computation_duration)
 
 		if isinstance(packets_by_tag, dict):
 			self.packets_by_tag = packets_by_tag
@@ -211,7 +214,8 @@ class Output:
 					('packets_delivered',     self.packets_delivered),
 					('packets_not_delivered', self.packets_not_delivered),
 					('time_slots_used',       self.time_slots_used),
-					('time_slots_not_used',   self.time_slots_not_used)]
+					('time_slots_not_used',   self.time_slots_not_used),
+					('computation_duration',  self.computation_duration)]
 
 		if self.packets_by_tag is not None:
 			str_vals.append(('packets_by_tag',        ','.join(map(lambda x: str(x[0]) + '=' + str(x[1]), self.packets_by_tag.iteritems()))))
@@ -444,23 +448,20 @@ if __name__ == '__main__':
 		if experiment == TEST:
 			inputs.append(Input(window_size = 100))
 
-		if experiment == NUM_NODES:
-			# num_nodes = [25, 50, 75, 100, 125, 150]
-			# num_large = [1,  2,  3,  4,   5,   6 ]
-			# num_small = [3,  6,  9,  12,  15,  18]
-			
-			num_nodes = [25, 50]
-			num_large = [1, 2]
-			num_small = [3, 6]
-			# methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
-			methods   = ['octopus-r', 'upper-bound', 'eclipse']
+		elif experiment == NUM_NODES:
+			num_nodes = [25, 50, 75, 100, 125, 150, 200, 300]
+			num_large = [1,  2,  3,  4,   5,   6,   8,   12]
+			num_small = [3,  6,  9,  12,  15,  18,  24,  36]
+			# methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e', 'octopus-b']
+			methods = ['octopus-b']
 			
 			for nn, nl, ns in zip(num_nodes, num_large, num_small):
 				inputs.append(Input(num_nodes = nn, nl = nl, ns = ns, methods = methods, out_file = out_file.format('num_nodes'), key_value = 'num_nodes'))
 
 		elif experiment == RECONFIG_DELTA:
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
-			methods         = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
+			# methods         = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e', 'octopus-b']
+			methods = ['octopus-b']
 
 			for rd in reconfig_deltas:
 				inputs.append(Input(reconfig_delta = rd, methods = methods, out_file = out_file.format('reconfig_delta'), key_value = 'reconfig_delta'))
@@ -469,7 +470,8 @@ if __name__ == '__main__':
 			num_large = [1, 2, 3, 4,  5,  6,  7,  8]
 			num_small = [3, 6, 9, 12, 15, 18, 21, 24]
 
-			methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
+			# methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e', 'octopus-b']
+			methods = ['octopus-b']
 
 			for nl, ns in zip(num_large, num_small):
 				inputs.append(Input(nl = nl, ns = ns, methods = methods, out_file = out_file.format('sparsity'), key_value = 'nl'))
@@ -477,13 +479,15 @@ if __name__ == '__main__':
 		elif experiment == SKEWNESS:
 			capa_large = [0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25]
 			capa_small = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75]
-			methods    = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
+			# methods    = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e', 'octopus-b']
+			methods = ['octopus-b']
 
 			for cl, cs in zip(capa_large, capa_small):
 				inputs.append(Input(cl = cl, cs = cs, methods = methods, out_file = out_file.format('skewness'), key_value = 'cl'))
 
 		elif experiment == EPS_TEST:
-			methods       = ['upper-bound', 'octopus-r', 'octopus-e', 'octopus-e']
+			# methods       = ['upper-bound', 'octopus-r', 'octopus-e']
+			methods       = ['octopus-b']
 			route_lengths = [1, 2, 3]
 
 			for route_length in route_lengths:
@@ -491,18 +495,18 @@ if __name__ == '__main__':
 
 		elif experiment == REAL_TRAFFIC:
 			# methods = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e']
-			# input_source = ['microsoft', 'facebook']
-			# cluster = ['1', '2', '3']
-			methods = ['octopus-r', 'split']
-			input_source = ['facebook']
-			cluster = ['1']
+			input_source = ['microsoft', 'facebook']
+			cluster = ['1', '2', '3']
+
+			methods = ['octopus-b']
 
 			for source in input_source:
 				for clus in cluster:
 					inputs.append(Input(input_source = source, cluster = clus, methods = methods, out_file = out_file.format('real_traffic'), key_value = 'input_source'))
 
 		elif experiment == OCTOPUS:
-			methods = ['octopus+', 'octopus-r']
+			# methods = ['octopus+', 'octopus-r']
+			methods = ['octopus-b']
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 
 			for rd in reconfig_deltas:
