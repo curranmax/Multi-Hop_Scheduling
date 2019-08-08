@@ -12,9 +12,11 @@ from runner import DEFAULT_WINDOW_SIZE
 
 
 def average(vals):
+	vals = list(filter(None, vals))  # filter out the None values
 	return float(sum(vals)) / float(len(vals))
 
 def min_max(vals):
+	vals = list(filter(None, vals))  # filter out the None values
 	vals = np.array(vals)
 	return (round(vals.min(), 4), round(vals.max(), 4))
 
@@ -44,13 +46,12 @@ def y_fmt(tick_val, pos):
     else:
         return tick_val
 
-
-
-METHOD  = ['Octopus', 'Octopus+', 'Octopus-e', 'Eclipse-Based', 'UB',      'Absolute-UB']
-_COLOR  = ['b',       'c',        'gray',      'g',             'orange',  'r']
 # _MARKER = ['o',       'h',        's',         '^',             'D',       'P']
-_MARKER = ['o',       'o',        'o',         'o',             'o',       'o']
-_LINE   = ['-',       ':',        ':',         ':',             ':',       '-']
+
+METHOD  = ['Octopus', 'Octopus+', 'Octopus-e', 'Octopus-b', 'Eclipse-Based', 'UB',      'Absolute-UB']
+_COLOR  = ['b',       'c',        'gray',      'k',         'g',             'orange',  'r']
+_MARKER = ['o',       'o',        'o',         'o',         'o',             'o',       'o']
+_LINE   = ['-',       ':',        ':',         '-',         ':',             ':',       '-']
 COLOR   = dict(zip(METHOD, _COLOR))
 MARKER  = dict(zip(METHOD, _MARKER))
 LINE    = dict(zip(METHOD, _LINE))
@@ -179,7 +180,7 @@ def plot1_1(path):
 	data = runner.readDataFromFile(filename.format(path))
 
 	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB', 'Octopus-b']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -204,8 +205,8 @@ def plot1_2(path):
 	filename = '{}/reconfig_delta.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -230,8 +231,8 @@ def plot1_3(path):
 	filename = '{}/skewness.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -255,8 +256,8 @@ def plot1_4(path):
 	filename = '{}/sparsity.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
-	methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
-	methods_ = ['Eclipse-Based', 'Octopus',   'UB']
+	methods  = ['eclipse'      , 'octopus-r', 'upper-bound', 'octopus-b']
+	methods_ = ['Eclipse-Based', 'Octopus',   'UB',          'Octopus-b']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -473,10 +474,10 @@ if __name__ == '__main__':
 
 	path = 'data/6-23'
 
-	plot1_1(path)  # num of nodes
+	# plot1_1(path)  # num of nodes
 	# plot1_2(path)  # reconfig delta
 	# plot1_3(path)  # skewness
-	# plot1_4(path)  # sparsity
+	plot1_4(path)  # sparsity
 	# plot2_1(path)    # real traffic
 	# plot2_2(path)    # real traffic
 	# plot3(path)    # reconfig delta + objective value
