@@ -113,7 +113,7 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 
 	if absolute_ub and y_label == '% of Packets Deliverd':
 		method = 'Absolute-UB'
-		if x_label != 'Average # of hops':
+		if x_label != 'Average # of hops' and ('Octopus-B' not in methods):
 			y = [66 for _ in X]	
 			plt.plot(X, y, linestyle=LINE[method], marker=MARKER[method], color=COLOR[method], label=method)
 		if x_label == 'Average # of hops':
@@ -168,7 +168,7 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 	ax.tick_params(pad=20)
 
 	if x_label == '# of Nodes':
-		plt.xticks([25, 50, 100, 150, 200, 250, 300])
+		plt.xticks([50, 100, 150, 200, 250, 300])
 	if x_label:
 		ax.set_xlabel(x_label, labelpad=15)
 	if y_label:
@@ -505,8 +505,8 @@ if __name__ == '__main__':
 	# plot2_1(path)    # real traffic
 	# plot2_2(path)    # real traffic
 	# plot3(path)    # reconfig delta + objective value
-	plot4(path)    # reconfig delta + octopus+/R
+	# plot4(path)    # reconfig delta + octopus+/R
 	# plot5(path)    # average hop count
-	# plot_7(path)     # Octopus-B
+	plot_7(path)     # Octopus-B
 
 	# plot2_(path, 'real_traffic-10-merge')    # real traffic
