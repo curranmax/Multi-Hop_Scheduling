@@ -199,8 +199,11 @@ class Output:
 		self.packets_not_delivered = int(packets_not_delivered)
 		self.time_slots_used       = int(time_slots_used)
 		self.time_slots_not_used   = int(time_slots_not_used)
-
-		self.computation_duration = float(computation_duration)
+		
+		if computation_duration is None:
+			self.computation_duration = 0
+		else:
+			self.computation_duration = float(computation_duration)
 
 		if isinstance(packets_by_tag, dict):
 			self.packets_by_tag = packets_by_tag
@@ -473,7 +476,7 @@ if __name__ == '__main__':
 			num_small = [3, 6, 9, 12, 15, 18, 21, 24]
 
 			# methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e', 'octopus-b']
-			methods = ['ocotopus-b']
+			methods = ['octopus-b']
 
 			for nl, ns in zip(num_large, num_small):
 				inputs.append(Input(nl = nl, ns = ns, methods = methods, out_file = out_file.format('sparsity'), key_value = 'nl'))
