@@ -318,7 +318,7 @@ def getDataFromProcess(proc, inpt, out_file, status = None):
 		status[inpt.out_file][inpt.getKeyValue()] += 1
 		printStatus(status)
 	
-	this_outfile = out_file
+	this_out_file = out_file
 	if inpt.out_file is not None:
 		this_out_file = inpt.out_file
 		
@@ -410,9 +410,11 @@ REAL_TRAFFIC   = 'real_traffic'    # 2
 OCTOPUS        = 'octopus'         # 4 (the second 3 in the document)
 EPS_TEST       = 'eps'             # 5 (the 4 in the document)
 
+PROJECTOR = 'projector'
+
 TEST = 'test'
 
-EXPERIMENTS = [NUM_NODES, RECONFIG_DELTA, SPARSITY, SKEWNESS, EPS_TEST, REAL_TRAFFIC, OCTOPUS, TEST]
+EXPERIMENTS = [NUM_NODES, RECONFIG_DELTA, SPARSITY, SKEWNESS, EPS_TEST, REAL_TRAFFIC, OCTOPUS, PROJECTOR, TEST]
 
 # python runner.py -exp reconfig_delta -nt NUM_TEST -out FILE
 
@@ -515,6 +517,15 @@ if __name__ == '__main__':
 			for rd in reconfig_deltas:
 				inputs.append(Input(reconfig_delta = rd, methods = methods, out_file = out_file.format('octopus'), key_value = 'reconfig_delta'))
 		
+		elif experiment == PROJECTOR:
+			num_nodes = [25, 50, 75, 100, 125, 150, 200, 300]
+			num_large = [1,  2,  3,  4,   5,   6,   8,   12]
+			num_small = [3,  6,  9,  12,  15,  18,  24,  36]
+			methods = ['octopus-r', 'projector']
+
+			for nn, nl, ns in zip(num_nodes, num_large, num_small):
+				inputs.append(Input(num_nodes = nn, nl = nl, ns = ns, methods = methods, out_file = out_file.format('num_nodes'), key_value = 'num_nodes'))
+
 		else:
 			raise Exception('Unexpected experiment: ' + str(experiment))
 
