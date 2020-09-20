@@ -9,7 +9,7 @@ import argparse
 import random
 
 INPUT_SOURCES = ['test', 'microsoft', 'sigmetrics', 'facebook']
-METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus-b', 'octopus+', 'octopus-e']
+METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus-b', 'octopus+', 'octopus-e', 'projector']
 
 
 def boolFromStr(val):
@@ -163,7 +163,7 @@ if __name__ == '__main__':
 			print 'Running method:', method
 
 		if method == 'octopus-r':
-			# Runs the main "vannilla" method
+			# Runs the main "vanilla" method
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, verbose = verbose)
 
 		if method == 'octopus-s':
@@ -251,6 +251,10 @@ if __name__ == '__main__':
 
 		if method == 'octopus-b':
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, alpha_search_method = 'search', verbose = verbose)
+
+		if method == 'projector':
+			fixed_alpha = 10.0 * reconfig_delta
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, fixed_alpha = fixed_alpha, use_random_matching = True, verbose = verbose)
 
 		results[method] = (schedule, result_metric)
 
