@@ -9,6 +9,7 @@ import matplotlib.ticker as tick
 import numpy as np
 import tabulate
 from runner import DEFAULT_WINDOW_SIZE
+import shutil
 
 
 def average(vals):
@@ -298,8 +299,10 @@ def plot2_1(path):
 		ind   = np.arange(len(oct_r))
 		width = 0.16
 		
-		fig, ax = plt.subplots(figsize=(23.5, 16))
-		fig.subplots_adjust(left=0.15, right=0.96, top=0.85, bottom=0.1)
+		# fig, ax = plt.subplots(figsize=(23.5, 16))                        # SIGMETRICS
+		fig, ax = plt.subplots(figsize=(16, 16))                            # Mobihoc
+		# fig.subplots_adjust(left=0.15, right=0.96, top=0.85, bottom=0.1)  # SIGMETRICS
+		fig.subplots_adjust(left=0.2, right=0.96, top=0.8, bottom=0.15)     # Mobihoc
 		pos1 = ind - width*1.5-0.03
 		pos2 = ind - width*0.5-0.01
 		pos3 = ind + width*0.5+0.01
@@ -309,12 +312,23 @@ def plot2_1(path):
 		ax.bar(pos3, ub, width, edgecolor='black', label='UB', color=COLOR['UB'])
 		ax.bar(pos4, a_ub,    width, edgecolor='black', label='Absolute-UB', color=COLOR['Absolute-UB'])
 		
-		plt.legend(bbox_to_anchor=(-0.18, 1.04), loc='lower left', ncol=4, fontsize=45)
-		ax.tick_params(axis='y', direction='in', length=10, width=3, pad=15)
+		box_to_anchor = (-0.22, 1.04)
+		plt.legend(bbox_to_anchor=box_to_anchor, loc='lower left', ncol=2, fontsize=50)
+		# ax.tick_params(direction='in', length=15, width=5)
+		ax.tick_params(pad=20)
+
+		# plt.legend(bbox_to_anchor=(-0.18, 1.04), loc='lower left', ncol=4, fontsize=45)
+		# ax.tick_params(axis='y', direction='in', length=10, width=3, pad=15)
 		ax.set_ylabel(metric_)
-		ax.set_xlabel('Various Facebook and Microsoft Clusters')
-		plt.xticks(ind, ['FB-1', 'FB-2', 'FB-3', 'MS-1', 'MS-2', 'MS-3'], fontsize=45)
+		ax.set_xlabel('Various FB and MS Clusters', labelpad=25)
+		plt.xticks(ind, ['FB-1', 'FB-2', 'FB-3', 'MS-1', 'MS-2', 'MS-3'], fontsize=50)
 		plt.savefig('{}/{}-real_traffic'.format(path, metric))
+		try:
+			src = '/home/caitao/Project/Multi-Hop_Scheduling'
+			dest = '/home/caitao/Project/latex/hybrid-circuit-switch-lcn-2019/figures/'
+			shutil.copy(src + '/{}/{}-real_traffic.png'.format(path, metric), dest)
+		except Exception as e:
+			print(e)
 
 
 def plot2_2(path):
@@ -502,10 +516,10 @@ if __name__ == '__main__':
 	# plot1_2(path)  # reconfig delta
 	# plot1_3(path)  # skewness
 	# plot1_4(path)  # sparsity
-	# plot2_1(path)    # real traffic
+	plot2_1(path)    # real traffic
 	# plot2_2(path)    # real traffic
 	# plot3(path)    # reconfig delta + objective value
-	plot4(path)    # reconfig delta + octopus+/R
+	# plot4(path)    # reconfig delta + octopus+/R
 	# plot5(path)    # average hop count
 	# plot_7(path)     # Octopus-B
 
