@@ -702,7 +702,7 @@ def convertMatching(graph, matching, num_nodes, use_random_matching = False, max
 			dst = max(edge)
 
 			new_matching.add((src, dst - num_nodes))
-	elif max_weight_matching_library is 'scipy':
+	elif max_weight_matching_library in ['scipy', 'google']:
 		new_matching = set()
 
 		for i, j in zip(matching[0], matching[1]):
