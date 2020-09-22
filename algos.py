@@ -7,6 +7,7 @@ import networkx as nx
 import numpy as np
 import scipy.optimize as scipy_opt
 import time
+import random
 
 # MAX_WEIGHT_MATCHING_LIBRARY = 'networkx'
 MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
@@ -389,6 +390,7 @@ def filterAlphas(alphas, total_duration_so_far, num_matchings, window_size, reco
 	Profiler.end('filterAlphas')
 	return new_alphas
 
+# Finds a random stable matching based on the given weights
 def findRandomStableMatching(num_nodes, graph):
 	# TODO - Add some randomness to this.
 
@@ -427,6 +429,25 @@ def findRandomStableMatching(num_nodes, graph):
 	matching = set((i, j) for i, j in enumerate(input_assignment))
 	return matching
 
+def findRandomStableMatchingAllWeightsOne(num_nodes, graph):
+	new_graph = np.zeros((num_nodes, num_nodes))
+	for i in range(num_nodes):
+		for j in range(num_nodes):
+			if graph[i][j] > 0.0:
+				new_graph[i][j] = 1.0
+
+	return findRandomStableMatching(num_nodes, graph)
+
+# Finds a random matching for the complete graph of the given size network.
+def findRandomMatching(num_nodes):
+	input_nodes  = [i for i in range(num_nodes)]
+	output_nodes = [i for i in range(num_nodes)]
+
+	random.shuffle(output_nodes)
+
+	matching = set((i, j) for i, j in zip(input_nodes, output_nodes))
+	return matching
+
 # Computes the optimal matching for the given value of alpha.
 # Input:
 #   subflows_by_next_hop --> All subflows grouped by their next hop. SubFlows in each group are sorted from shortest to longest with flow.id as a tiebreak. Must be a dict with keys of (curNode(), nextNode()) and value of list of SubFlow.
@@ -442,9 +463,20 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_
 	graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, all_weights, max_weight_matching_library = max_weight_matching_library)
 
 	if use_random_matching:
-		Profiler.start('findRandomStableMatching')
-		matching = findRandomStableMatching(num_nodes, graph)
-		Profiler.end('findRandomStableMatching')
+		# Random stable matching using Octopus weights
+		# Profiler.start('findRandomStableMatching')
+		# matching = findRandomStableMatching(num_nodes, graph)
+		# Profiler.end('findRandomStableMatching')
+
+		# Random matching over edges wtih some amount of traffic
+		Profiler.start('findRandomStableMatchingAllWeightsOne')
+		matching = findRandomStableMatchingAllWeightsOne(num_nodes, graph)
+		Profiler.end('findRandomStableMatchingAllWeightsOne')
+
+		# Completely random matching
+		# Profiler.start('findRandomMatching')
+		# matching = findRandomMatching(num_nodes)
+		# Profiler.end('findRandomMatching')
 
 		matching_weight = sum(graph[a][b] for a, b in matching)
 
@@ -750,11 +782,13 @@ def updateSubFlows(subflows, alpha, track_updated_subflows = False):
 #   flows_have_given_invweight --> If given, then flows has values of (input_utils.Flow, invweight) instead of just input_utils.Flow
 #   precomputed_schedule --> If given, uses the given schedule instead of computed maximum weight matchings
 #   alpha_search_method --> Method used to find the optimal alpha. Must be either 'iterative' or 'search'
+#   use_random_matching --> Uses random matchings instead of maximum weight matching
+#   global_override_weight --> If a non-None given, then all subflows will have the given weight.
 # Output:
 #   schedule --> The computed schedule, containing the matchings and durations
 #   result_metric --> Holds the various metrics to judge the algorithm
 #   (Optional) completed_flow_ids --> List of flow_ids of subflows that reach their destination
-def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound = False, return_packets_delivered_by_flow_id = False, flows_have_given_invweight = False, precomputed_schedule = None, consider_all_routes = False, backtrack = False, alpha_search_method = 'iterative', fixed_alpha = None, use_random_matching = False, verbose = False):
+def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound = False, return_packets_delivered_by_flow_id = False, flows_have_given_invweight = False, precomputed_schedule = None, consider_all_routes = False, backtrack = False, alpha_search_method = 'iterative', fixed_alpha = None, use_random_matching = False, global_override_weight = None, verbose = False):
 	Profiler.start('computeSchedule')
 	# TODO Check that the set of flags are consistent
 
@@ -772,6 +806,8 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 		starting_subflows = [SubFlow(flow = flow, override_route = route, tag = str(len(route) - 1) + '-hop') for _, flow in flows.iteritems() for route in flow.all_routes]
 	elif flows_have_given_invweight:
 		starting_subflows = [SubFlow(flow = flow, override_invweight = invweight) for _, (flow, invweight) in flows.iteritems()]
+	elif global_override_weight is not None:
+		starting_subflows = [SubFlow(flow = flow, override_weight = global_override_weight) for _, flow in flows.iteritems()]
 	else:
 		starting_subflows = [SubFlow(flow = flow) for _, flow in flows.iteritems()]
 
@@ -817,6 +853,9 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 
 					# Finds the weight of the backtrack subflow. It is equal to the sum of the weights of the remaining hops in the subflow
 					backtrack_weight = this_subflow.remainingRouteLength() * this_subflow.getWeight()
+
+					if global_override_weight is None:
+						raise Exception('Cannot both backtrack and use global_override_weight at the same time')
 
 					# Creates the backtrack_subflow and adds it to the system.
 					backtrack_subflow = SubFlow(subflow = this_subflow, override_route = backtrack_route, override_size = this_subflow.getSize(), override_subflow_id = this_subflow.subflowID(), override_weight = backtrack_weight, tag = '1-hop_backtrack')
@@ -938,7 +977,7 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 							if len(other_route) == len(new_subflow.route) and all(a == b for a, b in zip(other_route, new_subflow.route)):
 								continue
 
-							other_subflow = SubFlow(flow = new_subflow.flow, override_subflow_id = this_subflow_id, override_route = other_route, override_size = new_subflow.getSize(), tag = str(len(other_route) - 1) + '-hop')
+							other_subflow = SubFlow(flow = new_subflow.flow, override_subflow_id = this_subflow_id, override_route = other_route, override_size = new_subflow.getSize(), tag = str(len(other_route) - 1) + '-hop', override_weight = global_override_weight)
 				
 							current_subflows_by_subflow_id[other_subflow.subflowID()].append(other_subflow)
 
