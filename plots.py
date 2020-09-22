@@ -49,10 +49,10 @@ def y_fmt(tick_val, pos):
 
 # _MARKER = ['o',       'h',        's',         '^',             'D',       'P']
 
-METHOD  = ['Octopus-Random', 'Octopus', 'Octopus+', 'Octopus-e', 'Octopus-B', 'Eclipse-Based', 'UB',      'Absolute-UB']
-_COLOR  = ['b',              'b',       'c',        'gray',      'k',         'g',             'orange',  'r']
-_MARKER = ['o',              'o',       'o',        'o',         'o',         'o',             'o',       'o']
-_LINE   = ['-',              '-',       ':',        ':',         ':',         ':',             ':',       '-']
+METHOD  = ['Octopus-Random', 'Octopus', 'Octopus+', 'Octopus-e', 'Octopus-B', 'Eclipse-Based', 'UB',      'Absolute-UB', 'Projector', 'Octopus-G']
+_COLOR  = ['b',              'b',       'c',        'gray',      'k',         'g',             'orange',  'r',           'purple',    'cyan']
+_MARKER = ['o',              'o',       'o',        'o',         'o',         'o',             'o',       'o',           'o',         'o'     ]
+_LINE   = ['-',              '-',       ':',        ':',         ':',         ':',             ':',       '-',           '-',         '-'     ]
 COLOR   = dict(zip(METHOD, _COLOR))
 MARKER  = dict(zip(METHOD, _MARKER))
 LINE    = dict(zip(METHOD, _LINE))
@@ -501,6 +501,32 @@ def plot_7(path):
 		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, 'octopus', 'binary'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_, absolute_ub=True, yerr_table=yerr_table)
 
 
+def oneshot_revision(path):
+	filename = '{}/reconfig_delta.txt'
+	data = runner.readDataFromFile(filename.format(path))
+
+	# methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
+	# methods_ = ['Eclipse-Based', 'Octopus',   'UB']
+	methods  = ['octopus-r', 'projector', 'octopus-greedy']
+	methods_ = ['Octopus',   'Projector', 'Octopus-G']
+	metric   = ['percent_packets_delivered', 'link_utilization']
+	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
+
+	for i in range(0, len(metric)):
+		table = defaultdict(list)
+		for inpt, output_by_method in data:
+			table[(inpt.reconfig_delta)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
+		
+		print_table = [[vs] + [reduce_func([(vals_by_method[method]  if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		yerr_table  = [[vs] + [reduce_func2([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		print metric[i]
+		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
+		print tabulate.tabulate(yerr_table, headers = ['DELTA'] + methods)
+		print ''
+
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
+
+
 
 if __name__ == '__main__':
 	
@@ -510,17 +536,20 @@ if __name__ == '__main__':
 	plt.rcParams['lines.linewidth'] = 10
 	plt.rcParams['lines.markersize'] = 15
 
-	path = 'data/6-23'
+	# path = 'data/6-23'
 
 	# plot1_1(path)  # num of nodes
 	# plot1_2(path)  # reconfig delta
 	# plot1_3(path)  # skewness
 	# plot1_4(path)  # sparsity
-	plot2_1(path)    # real traffic
+	# plot2_1(path)    # real traffic
 	# plot2_2(path)    # real traffic
 	# plot3(path)    # reconfig delta + objective value
 	# plot4(path)    # reconfig delta + octopus+/R
 	# plot5(path)    # average hop count
-	plot_7(path)     # Octopus-B
+	# plot_7(path)     # Octopus-B
 
 	# plot2_(path, 'real_traffic-10-merge')    # real traffic
+
+	path = 'data/9-21'
+	oneshot_revision(path)

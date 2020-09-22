@@ -10,7 +10,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["-exp", "real_traffic", "num_nodes", "-nt", "1", "-nc", "6", "-out", "data/8-4/{}.txt"],
+            "args": ["-exp", "projector", "-nt", "2", "-nc", "11", "-out", "data/9-21/{}.txt"],
+            "args-": ["-nn", "100", "-min_rl", "1", "-rl", "3", "-ws", "10000", "-rd", "500", "-nr", "10", "-eps", "False", "-is", "sigmetrics", "-nl", "4", "-ns", "12", "-cl", "0.7", "-cs", "0.3", "-clus", "1", "-m", "octopus-greedy", "-runner"]
         }
     ]
 }

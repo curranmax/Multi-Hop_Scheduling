@@ -437,7 +437,7 @@ def findRandomStableMatching(num_nodes, graph):
 # Output:
 #   matching --> Optimal matching
 #   matching_weight --> weight of the optimal matching
-def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_matching = False, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
+def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_matching = False, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY, greedy=False):
 	# Creates the graph for the given alpha
 	graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, all_weights, max_weight_matching_library = max_weight_matching_library)
 
@@ -445,21 +445,22 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_
 		Profiler.start('findRandomStableMatching')
 		matching = findRandomStableMatching(num_nodes, graph)
 		Profiler.end('findRandomStableMatching')
-
 		matching_weight = sum(graph[a][b] for a, b in matching)
-
+	elif greedy:
+		Profiler.start('greedy')
+		matching = greedy_match(graph)
+		Profiler.end('greedy')
+		matching_weight = graph[matching[0], matching[1]].sum()
 	# Find the maximum weight matching of the graph using a 3rd party library
 	elif max_weight_matching_library is 'networkx':
 		Profiler.start('networkx.max_weight_matching')
 		matching = nx.algorithms.matching.max_weight_matching(graph)
 		Profiler.end('networkx.max_weight_matching')
-
 		matching_weight = sum(graph[a][b]['weight'] for a, b in matching)
 	elif max_weight_matching_library is 'scipy':
 		Profiler.start('scipy.optimize.linear_sum_assignment')
 		matching = scipy_opt.linear_sum_assignment(-graph)
 		Profiler.end('scipy.optimize.linear_sum_assignment')
-
 		matching_weight = graph[matching[0], matching[1]].sum()
 	else:
 		raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
@@ -481,7 +482,7 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_
 #   best_matching_weight --> The total weight of the matching that maximizes the objective.
 #   best_alpha --> The best alpha found
 #   best_matching --> The best matching found. It is a set of (src, dst) edges.
-def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = 'iterative', use_random_matching = False, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
+def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = 'iterative', use_random_matching = False, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY, greedy=False):
 	if search_method not in ['iterative', 'search']:
 		raise Exception('Unexpected search_method: ' + str(search_method))
 
@@ -499,7 +500,7 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, se
 	if search_method == 'iterative':
 		# Tries all alpha values in alphas and finds the maximum weighted matching in each
 		for alpha in sorted(alphas):
-			matching, matching_weight = getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights_by_alpha[alpha], use_random_matching = use_random_matching, max_weight_matching_library = max_weight_matching_library)
+			matching, matching_weight = getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights_by_alpha[alpha], use_random_matching = use_random_matching, max_weight_matching_library = max_weight_matching_library, greedy=True)
 
 			# Track the graph that maximizes value(G) / (alpha + reconfig_delta)
 			this_objective_value = matching_weight / (alpha + reconfig_delta)
@@ -754,7 +755,7 @@ def updateSubFlows(subflows, alpha, track_updated_subflows = False):
 #   schedule --> The computed schedule, containing the matchings and durations
 #   result_metric --> Holds the various metrics to judge the algorithm
 #   (Optional) completed_flow_ids --> List of flow_ids of subflows that reach their destination
-def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound = False, return_packets_delivered_by_flow_id = False, flows_have_given_invweight = False, precomputed_schedule = None, consider_all_routes = False, backtrack = False, alpha_search_method = 'iterative', fixed_alpha = None, use_random_matching = False, verbose = False):
+def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound = False, return_packets_delivered_by_flow_id = False, flows_have_given_invweight = False, precomputed_schedule = None, consider_all_routes = False, backtrack = False, alpha_search_method = 'iterative', fixed_alpha = None, use_random_matching = False, verbose = False, greedy=False):
 	Profiler.start('computeSchedule')
 	# TODO Check that the set of flags are consistent
 
@@ -853,7 +854,7 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 			alphas = filterAlphas(alphas, schedule.totalDuration(reconfig_delta), schedule.numMatchings(), window_size, reconfig_delta)
 
 			# Track the best alpha and matching
-			objective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = alpha_search_method, use_random_matching = use_random_matching)
+			objective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = alpha_search_method, use_random_matching = use_random_matching, greedy=True)
 
 		else:
 			# Get next matching and alpha from precomputed_schedule
@@ -1228,3 +1229,55 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 
 	Profiler.end('computeSchedule')
 	return tuple(rvs)
+
+
+
+def cost2edges(cost):
+	'''turn a cost matrix into a list of edges
+	Args:
+		cost -- cost matrix
+	'''
+	n = len(cost)
+	edges = []
+	for i in range(n):
+		for j in range(n):
+			c = int(cost[i][j])
+			if c != 0:
+				edges.append((i, j+n, c))
+	return edges
+
+def greedy_match(cost_matrix):
+	'''greedy algorithm for maximum weight matching in a bipartite graph
+	Args:
+		cost_matrix -- np.array
+	Return:
+		
+	'''
+	n = len(cost_matrix)
+	edges = cost2edges(cost_matrix)
+	max_weight = int(np.max(cost_matrix) + 1)
+	buckets = [[] for _ in range(max_weight)]
+	for edge in edges:
+		buckets[edge[2]].append(edge)
+	visited = [False] * (2*n)
+	match = [[], []]
+	i = 0
+	for i in range(max_weight-1, -1, -1):
+		for edge in buckets[i]:
+			left, right, weight = edge
+			if visited[left] is False and visited[right] is False:
+				visited[left] = True
+				visited[right] = True
+				match[0].append(left)
+				match[1].append(right-n)
+	no_match_left = []
+	no_match_right = []
+	for i in range(n):
+		if visited[i] == False:
+			no_match_left.append(i)
+	for i in range(n, 2*n):
+		if visited[i] == False:
+			no_match_right.append(i-n)
+	match[0].extend(no_match_left)
+	match[1].extend(no_match_right)
+	return match

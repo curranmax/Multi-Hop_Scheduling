@@ -229,7 +229,7 @@ class Traffic:
                 rand = random.uniform(0.99, 1.01)   # add some randomness
                 size = int(size*rand)
                 self.matrix[i][j] = size
-        
+
         self.bound_traffic(multiply)
 
         ID = 0
