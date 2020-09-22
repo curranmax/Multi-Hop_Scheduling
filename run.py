@@ -9,7 +9,7 @@ import argparse
 import random
 
 INPUT_SOURCES = ['test', 'microsoft', 'sigmetrics', 'facebook']
-METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus-b', 'octopus+', 'octopus-e', 'projector']
+METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus-b', 'octopus+', 'octopus-e', 'projector', 'octopus-greedy']
 
 
 def boolFromStr(val):
@@ -165,6 +165,10 @@ if __name__ == '__main__':
 		if method == 'octopus-r':
 			# Runs the main "vanilla" method
 			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, verbose = verbose)
+
+		if method == 'octopus-greedy':
+			# Runs the main "vanilla" method and using the greedy maximum weight matching
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, verbose = verbose, greedy=True)
 
 		if method == 'octopus-s':
 			# Runs the "vanilla" method, but uses the shortest route instead of a random route

@@ -16,7 +16,7 @@ DEFAULT_RECONFIG_DELTA   = 20
 DEFAULT_NUM_ROUTES       = 10
 DEFAULT_USE_EPS          = False
 DEFAULT_INPUT_SOURCE     = 'sigmetrics'
-DEFAULT_METHODS          = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+', 'octopus-e', 'octopus-b']
+DEFAULT_METHODS          = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus+', 'octopus-e', 'octopus-b', 'octopus-greedy']
 DEFAULT_NL               = 4    # number of large flows   (for sigmetrics only)
 DEFAULT_NS               = 12   # number of small flows   (for sigmetrics only)
 DEFAULT_CL               = 0.7  # capacity of large flows (for sigmetrics only)
@@ -195,10 +195,10 @@ class Output:
 
 		# Note that values are require for parameters being directly converted to floats and ints
 		self.total_objective_value = float(total_objective_value)
-		self.packets_delivered     = int(packets_delivered)
-		self.packets_not_delivered = int(packets_not_delivered)
-		self.time_slots_used       = int(time_slots_used)
-		self.time_slots_not_used   = int(time_slots_not_used)
+		self.packets_delivered     = int(float(packets_delivered))
+		self.packets_not_delivered = int(float(packets_not_delivered))
+		self.time_slots_used       = int(float(time_slots_used))
+		self.time_slots_not_used   = int(float(time_slots_not_used))
 		
 		if computation_duration is None:
 			self.computation_duration = 0
@@ -337,7 +337,7 @@ def runAllTests(inputs, num_tests, out_file):
 
 			getDataFromProcess(p, inpt, out_file)
 
-def runAllTestsInParallel(inputs, num_tests, out_file, num_cores = 1, wait_time = 30):
+def runAllTestsInParallel(inputs, num_tests, out_file, num_cores = 1, wait_time = 10):
 	if all(inpt.out_file is not None and inpt.key_value is not None for inpt in inputs):
 		status = defaultdict(dict)
 		for inpt in inputs:
@@ -411,6 +411,7 @@ OCTOPUS        = 'octopus'         # 4 (the second 3 in the document)
 EPS_TEST       = 'eps'             # 5 (the 4 in the document)
 
 PROJECTOR = 'projector'
+
 
 TEST = 'test'
 
@@ -518,13 +519,13 @@ if __name__ == '__main__':
 				inputs.append(Input(reconfig_delta = rd, methods = methods, out_file = out_file.format('octopus'), key_value = 'reconfig_delta'))
 		
 		elif experiment == PROJECTOR:
-			num_nodes = [25, 50, 75, 100, 125, 150, 200, 300]
-			num_large = [1,  2,  3,  4,   5,   6,   8,   12]
-			num_small = [3,  6,  9,  12,  15,  18,  24,  36]
-			methods = ['octopus-r', 'projector']
+			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
+			# reconfig_deltas = [500]
+			# methods = ['optopus-greedy']
+			methods = ['octopus-r', 'projector', 'octopus-greedy']
 
-			for nn, nl, ns in zip(num_nodes, num_large, num_small):
-				inputs.append(Input(num_nodes = nn, nl = nl, ns = ns, methods = methods, out_file = out_file.format('num_nodes'), key_value = 'num_nodes'))
+			for rd in reconfig_deltas:
+				inputs.append(Input(reconfig_delta=rd, methods = methods, out_file = out_file.format('reconfig_delta'), key_value = 'reconfig_delta'))
 
 		else:
 			raise Exception('Unexpected experiment: ' + str(experiment))

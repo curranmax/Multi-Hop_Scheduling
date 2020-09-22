@@ -9,6 +9,7 @@ import matplotlib.ticker as tick
 import numpy as np
 import tabulate
 from runner import DEFAULT_WINDOW_SIZE
+import shutil
 
 
 def average(vals):
@@ -48,10 +49,10 @@ def y_fmt(tick_val, pos):
 
 # _MARKER = ['o',       'h',        's',         '^',             'D',       'P']
 
-METHOD  = ['Octopus-Random', 'Octopus', 'Octopus+', 'Octopus-e', 'Octopus-B', 'Eclipse-Based', 'UB',      'Absolute-UB']
-_COLOR  = ['b',              'b',       'c',        'gray',      'k',         'g',             'orange',  'r']
-_MARKER = ['o',              'o',       'o',        'o',         'o',         'o',             'o',       'o']
-_LINE   = ['-',              '-',       ':',        ':',         ':',         ':',             ':',       '-']
+METHOD  = ['Octopus-Random', 'Octopus', 'Octopus+', 'Octopus-e', 'Octopus-B', 'Eclipse-Based', 'UB',      'Absolute-UB', 'Projector', 'Octopus-G']
+_COLOR  = ['b',              'b',       'c',        'gray',      'k',         'g',             'orange',  'r',           'purple',    'cyan']
+_MARKER = ['o',              'o',       'o',        'o',         'o',         'o',             'o',       'o',           'o',         'o'     ]
+_LINE   = ['-',              '-',       ':',        ':',         ':',         ':',             ':',       '-',           '-',         '-'     ]
 COLOR   = dict(zip(METHOD, _COLOR))
 MARKER  = dict(zip(METHOD, _MARKER))
 LINE    = dict(zip(METHOD, _LINE))
@@ -298,8 +299,10 @@ def plot2_1(path):
 		ind   = np.arange(len(oct_r))
 		width = 0.16
 		
-		fig, ax = plt.subplots(figsize=(23.5, 16))
-		fig.subplots_adjust(left=0.15, right=0.96, top=0.85, bottom=0.1)
+		# fig, ax = plt.subplots(figsize=(23.5, 16))                        # SIGMETRICS
+		fig, ax = plt.subplots(figsize=(16, 16))                            # Mobihoc
+		# fig.subplots_adjust(left=0.15, right=0.96, top=0.85, bottom=0.1)  # SIGMETRICS
+		fig.subplots_adjust(left=0.2, right=0.96, top=0.8, bottom=0.15)     # Mobihoc
 		pos1 = ind - width*1.5-0.03
 		pos2 = ind - width*0.5-0.01
 		pos3 = ind + width*0.5+0.01
@@ -309,12 +312,23 @@ def plot2_1(path):
 		ax.bar(pos3, ub, width, edgecolor='black', label='UB', color=COLOR['UB'])
 		ax.bar(pos4, a_ub,    width, edgecolor='black', label='Absolute-UB', color=COLOR['Absolute-UB'])
 		
-		plt.legend(bbox_to_anchor=(-0.18, 1.04), loc='lower left', ncol=4, fontsize=45)
-		ax.tick_params(axis='y', direction='in', length=10, width=3, pad=15)
+		box_to_anchor = (-0.22, 1.04)
+		plt.legend(bbox_to_anchor=box_to_anchor, loc='lower left', ncol=2, fontsize=50)
+		# ax.tick_params(direction='in', length=15, width=5)
+		ax.tick_params(pad=20)
+
+		# plt.legend(bbox_to_anchor=(-0.18, 1.04), loc='lower left', ncol=4, fontsize=45)
+		# ax.tick_params(axis='y', direction='in', length=10, width=3, pad=15)
 		ax.set_ylabel(metric_)
-		ax.set_xlabel('Various Facebook and Microsoft Clusters')
-		plt.xticks(ind, ['FB-1', 'FB-2', 'FB-3', 'MS-1', 'MS-2', 'MS-3'], fontsize=45)
+		ax.set_xlabel('Various FB and MS Clusters', labelpad=25)
+		plt.xticks(ind, ['FB-1', 'FB-2', 'FB-3', 'MS-1', 'MS-2', 'MS-3'], fontsize=50)
 		plt.savefig('{}/{}-real_traffic'.format(path, metric))
+		try:
+			src = '/home/caitao/Project/Multi-Hop_Scheduling'
+			dest = '/home/caitao/Project/latex/hybrid-circuit-switch-lcn-2019/figures/'
+			shutil.copy(src + '/{}/{}-real_traffic.png'.format(path, metric), dest)
+		except Exception as e:
+			print(e)
 
 
 def plot2_2(path):
@@ -487,6 +501,32 @@ def plot_7(path):
 		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, 'octopus', 'binary'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_, absolute_ub=True, yerr_table=yerr_table)
 
 
+def oneshot_revision(path):
+	filename = '{}/reconfig_delta.txt'
+	data = runner.readDataFromFile(filename.format(path))
+
+	# methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
+	# methods_ = ['Eclipse-Based', 'Octopus',   'UB']
+	methods  = ['octopus-r', 'projector', 'octopus-greedy']
+	methods_ = ['Octopus',   'Projector', 'Octopus-G']
+	metric   = ['percent_packets_delivered', 'link_utilization']
+	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
+
+	for i in range(0, len(metric)):
+		table = defaultdict(list)
+		for inpt, output_by_method in data:
+			table[(inpt.reconfig_delta)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
+		
+		print_table = [[vs] + [reduce_func([(vals_by_method[method]  if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		yerr_table  = [[vs] + [reduce_func2([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		print metric[i]
+		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
+		print tabulate.tabulate(yerr_table, headers = ['DELTA'] + methods)
+		print ''
+
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
+
+
 
 if __name__ == '__main__':
 	
@@ -496,7 +536,7 @@ if __name__ == '__main__':
 	plt.rcParams['lines.linewidth'] = 10
 	plt.rcParams['lines.markersize'] = 15
 
-	path = 'data/6-23'
+	# path = 'data/6-23'
 
 	# plot1_1(path)  # num of nodes
 	# plot1_2(path)  # reconfig delta
@@ -507,6 +547,9 @@ if __name__ == '__main__':
 	# plot3(path)    # reconfig delta + objective value
 	# plot4(path)    # reconfig delta + octopus+/R
 	# plot5(path)    # average hop count
-	plot_7(path)     # Octopus-B
+	# plot_7(path)     # Octopus-B
 
 	# plot2_(path, 'real_traffic-10-merge')    # real traffic
+
+	path = 'data/9-21'
+	oneshot_revision(path)
