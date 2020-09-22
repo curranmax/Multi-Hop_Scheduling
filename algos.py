@@ -7,9 +7,11 @@ import networkx as nx
 import numpy as np
 import scipy.optimize as scipy_opt
 import time
+from ortools.graph import pywrapgraph
 
 # MAX_WEIGHT_MATCHING_LIBRARY = 'networkx'
-MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
+# MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
+MAX_WEIGHT_MATCHING_LIBRARY = 'google'
 
 EPS = 0.0
 def setUseEps(use_eps):
@@ -457,11 +459,25 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_
 		matching = nx.algorithms.matching.max_weight_matching(graph)
 		Profiler.end('networkx.max_weight_matching')
 		matching_weight = sum(graph[a][b]['weight'] for a, b in matching)
+	
 	elif max_weight_matching_library is 'scipy':
 		Profiler.start('scipy.optimize.linear_sum_assignment')
 		matching = scipy_opt.linear_sum_assignment(-graph)
 		Profiler.end('scipy.optimize.linear_sum_assignment')
 		matching_weight = graph[matching[0], matching[1]].sum()
+
+	elif max_weight_matching_library is 'google':
+		graph = -graph
+		assignment = pywrapgraph.LinearSumAssignment()
+		for i in range(len(graph)):
+			for j in range(len(graph)):
+				if graph[i][j]:
+					assignment.AddArcWithCost(i, j, int(graph[i][j]))
+		assignment.Solve()
+		left = list(range(len(graph)))
+		right = [assignment.RightMate(i) for i in left]
+		matching = [left, right]
+		matching_weight = -assignment.OptimalCost()
 	else:
 		raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
 
@@ -500,7 +516,7 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, se
 	if search_method == 'iterative':
 		# Tries all alpha values in alphas and finds the maximum weighted matching in each
 		for alpha in sorted(alphas):
-			matching, matching_weight = getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights_by_alpha[alpha], use_random_matching = use_random_matching, max_weight_matching_library = max_weight_matching_library, greedy=True)
+			matching, matching_weight = getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights_by_alpha[alpha], use_random_matching = use_random_matching, max_weight_matching_library = max_weight_matching_library, greedy=greedy)
 
 			# Track the graph that maximizes value(G) / (alpha + reconfig_delta)
 			this_objective_value = matching_weight / (alpha + reconfig_delta)
@@ -590,7 +606,7 @@ def createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, all_weights, ma
 		# Creates the weighted edges in bipartite graph
 		graph.add_weighted_edges_from([(i, j + num_nodes, all_weights[(i, j)]) for (i, j), subflows in subflows_by_next_hop.iteritems()])
 
-	elif max_weight_matching_library is 'scipy':
+	elif max_weight_matching_library in ['scipy', 'google']:
 		graph = np.zeros((num_nodes, num_nodes))
 
 		for (i, j), subflows in subflows_by_next_hop.iteritems():
@@ -854,7 +870,7 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 			alphas = filterAlphas(alphas, schedule.totalDuration(reconfig_delta), schedule.numMatchings(), window_size, reconfig_delta)
 
 			# Track the best alpha and matching
-			objective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = alpha_search_method, use_random_matching = use_random_matching, greedy=True)
+			objective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = alpha_search_method, use_random_matching = use_random_matching, greedy=greedy)
 
 		else:
 			# Get next matching and alpha from precomputed_schedule
