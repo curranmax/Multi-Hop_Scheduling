@@ -454,7 +454,6 @@ def findRandomMatching(num_nodes):
 def findRotornetMatching(num_nodes, iteration):
 	matching = [(i, (i + 1 + (iteration % (num_nodes - 1))) % num_nodes) for i in range(num_nodes)]
 
-	print iteration, matching
 	return matching
 
 # Computes the optimal matching for the given value of alpha.
