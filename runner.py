@@ -520,7 +520,6 @@ if __name__ == '__main__':
 				inputs.append(Input(reconfig_delta = rd, methods = methods, out_file = out_file.format('octopus'), key_value = 'reconfig_delta'))
 		
 		elif experiment == PROJECTOR:
-			# reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 			# reconfig_deltas = [500]
 			# methods = ['octopus-r', 'projector', 'rotornet']
@@ -531,7 +530,6 @@ if __name__ == '__main__':
 
 		elif experiment == GREEDY:
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
-			methods = ['octopus-greedy', 'octopus-r']
 			methods = ['octopus-r', 'octopus-greedy']
 
 			for rd in reconfig_deltas:
