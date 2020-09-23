@@ -258,7 +258,7 @@ if __name__ == '__main__':
 
 		if method == 'projector':
 			fixed_alpha = 10.0 * reconfig_delta
-			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, fixed_alpha = fixed_alpha, use_random_matching = True, verbose = verbose)
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, fixed_alpha = fixed_alpha, use_random_matching = True, global_override_weight = 1.0, verbose = verbose)
 
 		results[method] = (schedule, result_metric)
 
