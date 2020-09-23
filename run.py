@@ -9,7 +9,7 @@ import argparse
 import random
 
 INPUT_SOURCES = ['test', 'microsoft', 'sigmetrics', 'facebook']
-METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus-b', 'octopus+', 'octopus-e', 'projector', 'octopus-greedy']
+METHODS = ['octopus-r', 'octopus-s', 'upper-bound', 'split', 'eclipse', 'octopus-b', 'octopus+', 'octopus-e', 'projector', 'rotornet', 'octopus-greedy']
 
 
 def boolFromStr(val):
@@ -258,7 +258,14 @@ if __name__ == '__main__':
 
 		if method == 'projector':
 			fixed_alpha = 10.0 * reconfig_delta
-			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, fixed_alpha = fixed_alpha, use_random_matching = True, global_override_weight = 1.0, verbose = verbose)
+			alternate_matching = 'random_stable-ignore_weights'
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, fixed_alpha = fixed_alpha, use_alternate_matching = alternate_matching, global_override_weight = 1.0, verbose = verbose)
+
+		if method == 'rotornet':
+			fixed_alpha = 10.0 * reconfig_delta
+			alternate_matching = 'rotornet'
+			schedule, result_metric = algos.computeSchedule(num_nodes, flows, window_size, reconfig_delta, fixed_alpha = fixed_alpha, use_alternate_matching = alternate_matching, global_override_weight = 1.0, verbose = verbose)
+
 
 		results[method] = (schedule, result_metric)
 
