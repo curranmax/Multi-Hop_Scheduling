@@ -450,37 +450,60 @@ def findRandomMatching(num_nodes):
 	matching = set((i, j) for i, j in zip(input_nodes, output_nodes))
 	return matching
 
+def findRotornetMatching(num_nodes, iteration):
+	matching = [(i, (i + 1 + (iteration % (num_nodes - 1))) % num_nodes) for i in range(num_nodes)]
+
+	print iteration, matching
+	return matching
+
 # Computes the optimal matching for the given value of alpha.
 # Input:
 #   subflows_by_next_hop --> All subflows grouped by their next hop. SubFlows in each group are sorted from shortest to longest with flow.id as a tiebreak. Must be a dict with keys of (curNode(), nextNode()) and value of list of SubFlow.
 #   alpha --> Duration of matching
 #   num_nodes --> The number of nodes in the network
 #   all_weights --> weight of edges in the graph
-#   use_random_matching --> If True, then will return a random matching instead of a maximum weight matching.
+#   use_alternate_matching --> Uses alternate matching if value given.
+#   greedy --> does a greedy matching.
+#   iteration --> Current iteration of the matching. Only used when use_alternate_matching is "rotornet".
 # Output:
 #   matching --> Optimal matching
 #   matching_weight --> weight of the optimal matching
-def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_matching = False, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY, greedy=False):
+def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_alternate_matching = None, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY, greedy = False, iteration = None):
 	# Creates the graph for the given alpha
 	graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, all_weights, max_weight_matching_library = max_weight_matching_library)
 
-	if use_random_matching:
+	if use_alternate_matching == 'random_stable':
 		# Random stable matching using Octopus weights
-		# Profiler.start('findRandomStableMatching')
-		# matching = findRandomStableMatching(num_nodes, graph)
-		# Profiler.end('findRandomStableMatching')
+		Profiler.start('findRandomStableMatching')
+		matching = findRandomStableMatching(num_nodes, graph)
+		Profiler.end('findRandomStableMatching')
 
+		matching_weight = sum(graph[a][b] for a, b in matching)
+
+	elif use_alternate_matching == 'random_stable-ignore_weights':
 		# Random matching over edges wtih some amount of traffic
 		Profiler.start('findRandomStableMatchingAllWeightsOne')
 		matching = findRandomStableMatchingAllWeightsOne(num_nodes, graph)
 		Profiler.end('findRandomStableMatchingAllWeightsOne')
 
+		matching_weight = sum(graph[a][b] for a, b in matching)
+
+	elif use_alternate_matching == 'random':
 		# Completely random matching
-		# Profiler.start('findRandomMatching')
-		# matching = findRandomMatching(num_nodes)
-		# Profiler.end('findRandomMatching')
+		Profiler.start('findRandomMatching')
+		matching = findRandomMatching(num_nodes)
+		Profiler.end('findRandomMatching')
 
 		matching_weight = sum(graph[a][b] for a, b in matching)
+
+	elif use_alternate_matching == 'rotornet':
+		# Completely random matching
+		Profiler.start('findRotorNetMatching')
+		matching = findRotornetMatching(num_nodes, iteration)
+		Profiler.end('findRotorNetMatching')
+
+		matching_weight = sum(graph[a][b] for a, b in matching)
+
 	elif greedy:
 		Profiler.start('greedy')
 		matching = greedy_match(graph)
@@ -500,21 +523,21 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_
 		matching_weight = graph[matching[0], matching[1]].sum()
 
 	elif max_weight_matching_library is 'google':
-		graph = -graph
+		tmp_graph = -graph
 		assignment = pywrapgraph.LinearSumAssignment()
-		for i in range(len(graph)):
-			for j in range(len(graph)):
-				if graph[i][j]:
-					assignment.AddArcWithCost(i, j, int(graph[i][j]))
+		for i in range(len(tmp_graph)):
+			for j in range(len(tmp_graph)):
+				if tmp_graph[i][j]:
+					assignment.AddArcWithCost(i, j, int(tmp_graph[i][j]))
 		assignment.Solve()
-		left = list(range(len(graph)))
+		left = list(range(len(tmp_graph)))
 		right = [assignment.RightMate(i) for i in left]
 		matching = [left, right]
 		matching_weight = -assignment.OptimalCost()
 	else:
 		raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
 
-	matching = convertMatching(graph, matching, num_nodes, use_random_matching = use_random_matching, max_weight_matching_library = max_weight_matching_library)
+	matching = convertMatching(graph, matching, num_nodes, use_alternate_matching = use_alternate_matching, max_weight_matching_library = max_weight_matching_library)
 
 	return matching, matching_weight
 
@@ -525,13 +548,15 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_
 #   num_nodes --> The number of nodes in the network
 #   reconfig_delta --> the reconfiguraiton delta of the network
 #   search_method --> Search method to find the best alpha. Must be either 'iterative' or 'search'
-#   use_random_matching --> If true, then will find random matchings instead of maximum weight matchings.
+#   use_alternate_matching --> If given uses alternate matching
+#   greedy --> finds a greedy matching.
+#   rotation
 # Output:
 #   best_objective_value --> The objective value of the best matching and alpha. (i.e. total weight of matching / (alpha + reconfig_delta))
 #   best_matching_weight --> The total weight of the matching that maximizes the objective.
 #   best_alpha --> The best alpha found
 #   best_matching --> The best matching found. It is a set of (src, dst) edges.
-def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = 'iterative', use_random_matching = False, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY, greedy=False):
+def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = 'iterative', use_alternate_matching = None, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY, greedy = False, iteration = None):
 	if search_method not in ['iterative', 'search']:
 		raise Exception('Unexpected search_method: ' + str(search_method))
 
@@ -549,7 +574,7 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, se
 	if search_method == 'iterative':
 		# Tries all alpha values in alphas and finds the maximum weighted matching in each
 		for alpha in sorted(alphas):
-			matching, matching_weight = getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights_by_alpha[alpha], use_random_matching = use_random_matching, max_weight_matching_library = max_weight_matching_library, greedy=greedy)
+			matching, matching_weight = getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights_by_alpha[alpha], use_alternate_matching = use_alternate_matching, max_weight_matching_library = max_weight_matching_library, greedy = greedy, iteration = iteration)
 
 			# Track the graph that maximizes value(G) / (alpha + reconfig_delta)
 			this_objective_value = matching_weight / (alpha + reconfig_delta)
@@ -576,7 +601,7 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, se
 				this_alpha = list_alphas[qi]
 
 				if matchings_by_alpha[this_alpha] is None:
-					matching, matching_weight = getMatching(subflows_by_next_hop, this_alpha, num_nodes, all_weights_by_alpha[this_alpha], use_random_matching = use_random_matching, max_weight_matching_library = max_weight_matching_library)
+					matching, matching_weight = getMatching(subflows_by_next_hop, this_alpha, num_nodes, all_weights_by_alpha[this_alpha], use_alternate_matching = use_alternate_matching, max_weight_matching_library = max_weight_matching_library, iteration = iteration)
 					
 					matchings_by_alpha[this_alpha] = (matching, matching_weight)
 
@@ -721,12 +746,12 @@ def calculateAllWeights(subflows_by_next_hop, alphas):
 # Input:
 #   matching --> The output of nx.algorithms.matching.max_weight_matching, a set of (node_id, node_id)
 #   num_nodes --> number of nodes in the network
-#   use_random_matching --> Indicates if we created a random matching.
+#   use_alternate_matching --> Indicates if we are using an alternate matching.
 # Output:
 #   Returns the matching in our format. For each edge (x, y) in the inputted matching, the output will contain (min(x, y), max(x, y) - num_nodes)
-def convertMatching(graph, matching, num_nodes, use_random_matching = False, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
+def convertMatching(graph, matching, num_nodes, use_alternate_matching = None, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY):
 	Profiler.start('convertMatching')
-	if use_random_matching:
+	if use_alternate_matching is not None:
 		new_matching = matching
 	elif max_weight_matching_library is 'networkx':
 		new_matching = set()
@@ -800,13 +825,13 @@ def updateSubFlows(subflows, alpha, track_updated_subflows = False):
 #   flows_have_given_invweight --> If given, then flows has values of (input_utils.Flow, invweight) instead of just input_utils.Flow
 #   precomputed_schedule --> If given, uses the given schedule instead of computed maximum weight matchings
 #   alpha_search_method --> Method used to find the optimal alpha. Must be either 'iterative' or 'search'
-#   use_random_matching --> Uses random matchings instead of maximum weight matching
+#   use_alternate_matching --> Uses given alternate matching
 #   global_override_weight --> If a non-None given, then all subflows will have the given weight.
 # Output:
 #   schedule --> The computed schedule, containing the matchings and durations
 #   result_metric --> Holds the various metrics to judge the algorithm
 #   (Optional) completed_flow_ids --> List of flow_ids of subflows that reach their destination
-def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound = False, return_packets_delivered_by_flow_id = False, flows_have_given_invweight = False, precomputed_schedule = None, consider_all_routes = False, backtrack = False, alpha_search_method = 'iterative', fixed_alpha = None, use_random_matching = False, global_override_weight = None, verbose = False, greedy=False):
+def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound = False, return_packets_delivered_by_flow_id = False, flows_have_given_invweight = False, precomputed_schedule = None, consider_all_routes = False, backtrack = False, alpha_search_method = 'iterative', fixed_alpha = None, use_alternate_matching = None, global_override_weight = None, verbose = False, greedy=False):
 	Profiler.start('computeSchedule')
 	# TODO Check that the set of flags are consistent
 
@@ -848,6 +873,8 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 			raise Exception('Precomputed schedule does not match the given window_size')
 
 		precomputed_schedule_ind = 0
+
+	current_iteration = 0
 
 	# Used to measure computation time
 	compute_start = time.time()
@@ -910,7 +937,9 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 			alphas = filterAlphas(alphas, schedule.totalDuration(reconfig_delta), schedule.numMatchings(), window_size, reconfig_delta)
 
 			# Track the best alpha and matching
-			objective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = alpha_search_method, use_random_matching = use_random_matching, greedy=greedy)
+			objective_value, matching_weight, alpha, matching = findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, search_method = alpha_search_method, use_alternate_matching = use_alternate_matching, greedy = greedy, iteration = current_iteration)
+
+			current_iteration += 1
 
 		else:
 			# Get next matching and alpha from precomputed_schedule
