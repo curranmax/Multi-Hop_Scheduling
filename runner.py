@@ -411,6 +411,7 @@ OCTOPUS        = 'octopus'         # 4 (the second 3 in the document)
 EPS_TEST       = 'eps'             # 5 (the 4 in the document)
 
 PROJECTOR = 'projector'
+GREEDY =    'greedy'    # comparing the octopus-greedy agains octopus-fast
 
 
 TEST = 'test'
@@ -519,10 +520,18 @@ if __name__ == '__main__':
 				inputs.append(Input(reconfig_delta = rd, methods = methods, out_file = out_file.format('octopus'), key_value = 'reconfig_delta'))
 		
 		elif experiment == PROJECTOR:
+			# reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 			# reconfig_deltas = [500]
 			# methods = ['optopus-greedy']
-			methods = ['octopus-r', 'projector', 'octopus-greedy']
+			methods = ['octopus-r', 'projector']
+
+			for rd in reconfig_deltas:
+				inputs.append(Input(reconfig_delta=rd, methods = methods, out_file = out_file.format('reconfig_delta'), key_value = 'reconfig_delta'))
+
+		elif experiment == GREEDY:
+			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
+			methods = ['octopus-greedy', 'octopus-r']
 
 			for rd in reconfig_deltas:
 				inputs.append(Input(reconfig_delta=rd, methods = methods, out_file = out_file.format('reconfig_delta'), key_value = 'reconfig_delta'))
@@ -534,3 +543,6 @@ if __name__ == '__main__':
 		runAllTests(inputs, num_tests, out_file)
 	else:
 		runAllTestsInParallel(inputs, num_tests, out_file, num_cores = num_cores, wait_time = wait_time)
+
+
+# python runner.py -exp projector -nt 2 -nc 11 -out data/9-22-2/{}.txt

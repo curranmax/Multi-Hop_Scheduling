@@ -499,6 +499,7 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_
 		matching = scipy_opt.linear_sum_assignment(-graph)
 		Profiler.end('scipy.optimize.linear_sum_assignment')
 		matching_weight = graph[matching[0], matching[1]].sum()
+
 	elif max_weight_matching_library is 'google':
 		assignment = pywrapgraph.LinearSumAssignment()
 		for i in range(len(graph)):
