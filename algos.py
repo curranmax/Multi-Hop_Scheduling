@@ -10,8 +10,9 @@ import time
 from ortools.graph import pywrapgraph
 
 # MAX_WEIGHT_MATCHING_LIBRARY = 'networkx'
-# MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
-MAX_WEIGHT_MATCHING_LIBRARY = 'google'
+MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
+# MAX_WEIGHT_MATCHING_LIBRARY = 'google'   
+# # the google library is 10 times faster than scipy, but somehow giving a worse performence, i.e. around 3% percent of dropping in terms of total objective value and packets_delivered
 
 EPS = 0.0
 def setUseEps(use_eps):
@@ -465,14 +466,12 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_
 		matching = scipy_opt.linear_sum_assignment(-graph)
 		Profiler.end('scipy.optimize.linear_sum_assignment')
 		matching_weight = graph[matching[0], matching[1]].sum()
-
 	elif max_weight_matching_library is 'google':
-		graph = -graph
 		assignment = pywrapgraph.LinearSumAssignment()
 		for i in range(len(graph)):
 			for j in range(len(graph)):
 				if graph[i][j]:
-					assignment.AddArcWithCost(i, j, int(graph[i][j]))
+					assignment.AddArcWithCost(i, j, -int(graph[i][j]))
 		assignment.Solve()
 		left = list(range(len(graph)))
 		right = [assignment.RightMate(i) for i in left]
@@ -482,7 +481,6 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_random_
 		raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
 
 	matching = convertMatching(graph, matching, num_nodes, use_random_matching = use_random_matching, max_weight_matching_library = max_weight_matching_library)
-
 	return matching, matching_weight
 
 # Finds the matching and alpha that maximizes sum of weights of the matching / (alpha + reconfig_delta)

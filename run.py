@@ -280,3 +280,6 @@ if __name__ == '__main__':
 				print 'Method:', method, '--->',results[method][1]
 
 	Profiler.stats()
+
+
+# python run.py -nn 100 -min_rl 1 -rl 3 -ws 10000 -rd 500 -nr 10 -eps False -is sigmetrics -nl 4 -ns 12 -cl 0.7 -cs 0.3 -clus 1 -m octopus-r -runner
