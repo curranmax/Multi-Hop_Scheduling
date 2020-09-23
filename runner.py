@@ -522,7 +522,7 @@ if __name__ == '__main__':
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 			# reconfig_deltas = [500]
 			# methods = ['optopus-greedy']
-			methods = ['octopus-r', 'projector', 'octopus-greedy']
+			methods = ['octopus-r', 'projector', 'rotornet', 'octopus-greedy']
 
 			for rd in reconfig_deltas:
 				inputs.append(Input(reconfig_delta=rd, methods = methods, out_file = out_file.format('reconfig_delta'), key_value = 'reconfig_delta'))
