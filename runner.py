@@ -8,7 +8,7 @@ import time
 
 
 # Defines default values for parameters
-DEFAULT_NUM_NODES        = 100
+DEFAULT_NUM_NODES        = 1000
 DEFAULT_MIN_ROUTE_LENGTH = 1
 DEFAULT_MAX_ROUTE_LENGTH = 3
 DEFAULT_WINDOW_SIZE      = 10000
@@ -337,7 +337,7 @@ def runAllTests(inputs, num_tests, out_file):
 
 			getDataFromProcess(p, inpt, out_file)
 
-def runAllTestsInParallel(inputs, num_tests, out_file, num_cores = 1, wait_time = 10):
+def runAllTestsInParallel(inputs, num_tests, out_file, num_cores = 1, wait_time = 2):
 	if all(inpt.out_file is not None and inpt.key_value is not None for inpt in inputs):
 		status = defaultdict(dict)
 		for inpt in inputs:
@@ -427,7 +427,7 @@ if __name__ == '__main__':
 	parser.add_argument('-nt', '--num_tests', metavar = 'NUM_TESTS', type = int, nargs = 1, default = [1], help = 'Number of times to run each set of input')
 
 	parser.add_argument('-nc', '--num_cores', metavar = 'NUM_CORES', type = int, nargs = 1, default = [None], help = 'Number of cores to run tests on')
-	parser.add_argument('-wt', '--wait_time', metavar = 'WAIT_TIME', type = int, nargs = 1, default = [30], help = 'Number of seconds to wait between polling the status of parallel processes')
+	parser.add_argument('-wt', '--wait_time', metavar = 'WAIT_TIME', type = int, nargs = 1, default = [2], help = 'Number of seconds to wait between polling the status of parallel processes')
 
 	parser.add_argument('-out', '--out_file', metavar = 'OUT_FILE', type = str, nargs = 1, default = [''], help = 'File to output the results to')
 
@@ -530,7 +530,9 @@ if __name__ == '__main__':
 
 		elif experiment == GREEDY:
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
-			methods = ['octopus-r', 'octopus-greedy']
+			# reconfig_deltas = [200]
+			methods = ['octopus-r']
+			# methods = ['octopus-greedy']
 
 			for rd in reconfig_deltas:
 				inputs.append(Input(reconfig_delta=rd, methods = methods, out_file = out_file.format('reconfig_delta'), key_value = 'reconfig_delta'))

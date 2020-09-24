@@ -10,8 +10,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args-": ["-exp", "projector", "-nt", "2", "-nc", "11", "-out", "data/9-22-2/{}.txt"],
-            "args": ["-nn", "100", "-min_rl", "1", "-rl", "3", "-ws", "10000", "-rd", "500", "-nr", "10", "-eps", "False", "-is", "sigmetrics", "-nl", "4", "-ns", "12", "-cl", "0.7", "-cs", "0.3", "-clus", "1", "-m", "octopus-r", "-runner"]
+            "args": ["-exp", "greedy", "-nt", "1", "-nc", "5", "-out", "data/9-23-greedy-1000/{}.txt"],
+            "args-": ["-nn", "100", "-min_rl", "1", "-rl", "3", "-ws", "10000", "-rd", "500", "-nr", "10", "-eps", "False", "-is", "sigmetrics", "-nl", "4", "-ns", "12", "-cl", "0.7", "-cs", "0.3", "-clus", "1", "-m", "octopus-r", "-runner"]
         }
     ]
 }
