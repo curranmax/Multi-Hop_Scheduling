@@ -8,7 +8,7 @@ import time
 
 
 # Defines default values for parameters
-DEFAULT_NUM_NODES        = 1000
+DEFAULT_NUM_NODES        = 100
 DEFAULT_MIN_ROUTE_LENGTH = 1
 DEFAULT_MAX_ROUTE_LENGTH = 3
 DEFAULT_WINDOW_SIZE      = 10000
