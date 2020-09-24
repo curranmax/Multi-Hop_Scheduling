@@ -531,7 +531,7 @@ if __name__ == '__main__':
 		elif experiment == GREEDY:
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
 			# reconfig_deltas = [200]
-			methods = ['octopus-r']
+			methods = ['octopus-r', 'octopus-greedy']
 			# methods = ['octopus-greedy']
 
 			for rd in reconfig_deltas:
