@@ -49,10 +49,10 @@ def y_fmt(tick_val, pos):
 
 # _MARKER = ['o',       'h',        's',         '^',             'D',       'P']
 
-METHOD  = ['Octopus-Random', 'Octopus', 'Octopus+', 'Octopus-e', 'Octopus-B', 'Eclipse-Based', 'UB',      'Absolute-UB', 'Projector', 'Octopus-G']
-_COLOR  = ['b',              'b',       'c',        'gray',      'k',         'g',             'orange',  'r',           'purple',    'cyan']
-_MARKER = ['o',              'o',       'o',        'o',         'o',         'o',             'o',       'o',           'o',         'o'     ]
-_LINE   = ['-',              '-',       ':',        ':',         ':',         ':',             ':',       '-',           '-',         '-'     ]
+METHOD  = ['Octopus-Random', 'Octopus', 'Octopus+', 'Octopus-e', 'Octopus-B', 'Eclipse-Based', 'UB',      'Absolute-UB', 'Projector', 'Octopus-G', 'Rotornet']
+_COLOR  = ['b',              'b',       'c',        'gray',      'k',         'g',             'orange',  'r',           'purple',    'cyan',      'magenta']
+_MARKER = ['o',              'o',       'o',        'o',         'o',         'o',             'o',       'o',           'o',         'o',         'o']
+_LINE   = ['-',              '-',       ':',        ':',         ':',         ':',             ':',       '-',           '-',         '-',         ':']
 COLOR   = dict(zip(METHOD, _COLOR))
 MARKER  = dict(zip(METHOD, _MARKER))
 LINE    = dict(zip(METHOD, _LINE))
@@ -501,7 +501,7 @@ def plot_7(path):
 		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, 'octopus', 'binary'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_, absolute_ub=True, yerr_table=yerr_table)
 
 
-def oneshot_revision(path):
+def oneshot_revision_projector(path):
 	filename = '{}/reconfig_delta.txt'
 	data = runner.readDataFromFile(filename.format(path))
 
@@ -526,6 +526,30 @@ def oneshot_revision(path):
 
 		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
 
+def oneshot_revision_rotornet(path):
+	filename = '{}/reconfig_delta.txt'
+	data = runner.readDataFromFile(filename.format(path))
+
+	# methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
+	# methods_ = ['Eclipse-Based', 'Octopus',   'UB']
+	methods  = ['octopus-r', 'rotornet']
+	methods_ = ['Octopus',   'Rotornet']
+	metric   = ['percent_packets_delivered', 'link_utilization']
+	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
+
+	for i in range(0, len(metric)):
+		table = defaultdict(list)
+		for inpt, output_by_method in data:
+			table[(inpt.reconfig_delta)].append({method: getMetric(inpt, output, metric=metric[i]) for method, output in output_by_method.iteritems()})
+		
+		print_table = [[vs] + [reduce_func([(vals_by_method[method]  if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		yerr_table  = [[vs] + [reduce_func2([(vals_by_method[method] if method in vals_by_method else None) for vals_by_method in list_of_vals_by_method]) for method in methods] for vs, list_of_vals_by_method in sorted(table.iteritems())]
+		print metric[i]
+		print tabulate.tabulate(print_table, headers = ['DELTA'] + methods)
+		print tabulate.tabulate(yerr_table, headers = ['DELTA'] + methods)
+		print ''
+
+		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
 
 
 def oneshot_revision_greedy(path):
@@ -577,5 +601,8 @@ if __name__ == '__main__':
 
 	# plot2_(path, 'real_traffic-10-merge')    # real traffic
 
-	path = 'data/9-22-slow'
-	oneshot_revision(path)
+	# path = 'data/9-22-slow'
+	# oneshot_revision_projector(path)
+
+	path = 'data/9-23-slow-rotor'
+	oneshot_revision_rotornet(path)
