@@ -2,6 +2,7 @@
 *.DS_Store
 .vscode/settings.json
 .vscode/launch.json
+logs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -8,7 +8,7 @@ import time
 
 
 # Defines default values for parameters
-DEFAULT_NUM_NODES        = 500
+DEFAULT_NUM_NODES        = 1000
 DEFAULT_MIN_ROUTE_LENGTH = 1
 DEFAULT_MAX_ROUTE_LENGTH = 3
 DEFAULT_WINDOW_SIZE      = 10000
@@ -461,7 +461,7 @@ if __name__ == '__main__':
 			num_small = [3,  6,  9,  12,  15,  18,  24,  36]
 			# methods   = ['octopus-r', 'upper-bound', 'split', 'eclipse', 'octopus-e', 'octopus-b']
 			methods = ['octopus-b']
-			
+
 			for nn, nl, ns in zip(num_nodes, num_large, num_small):
 				inputs.append(Input(num_nodes = nn, nl = nl, ns = ns, methods = methods, out_file = out_file.format('num_nodes'), key_value = 'num_nodes'))
 
@@ -482,7 +482,7 @@ if __name__ == '__main__':
 
 			for nl, ns in zip(num_large, num_small):
 				inputs.append(Input(nl = nl, ns = ns, methods = methods, out_file = out_file.format('sparsity'), key_value = 'nl'))
-	
+
 		elif experiment == SKEWNESS:
 			capa_large = [0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25]
 			capa_small = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75]
@@ -530,12 +530,10 @@ if __name__ == '__main__':
 
 		elif experiment == GREEDY:
 			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
-			# reconfig_deltas = [200]
 			methods = ['octopus-r', 'octopus-greedy']
-			# methods = ['octopus-greedy']
 
 			for rd in reconfig_deltas:
-				inputs.append(Input(reconfig_delta=rd, methods = methods, out_file = out_file.format('reconfig_delta'), key_value = 'reconfig_delta'))
+				inputs.append(Input(num_nodes=1000, reconfig_delta=rd, methods = methods, out_file = out_file.format('reconfig_delta'), key_value = 'reconfig_delta'))
 
 		else:
 			raise Exception('Unexpected experiment: ' + str(experiment))
@@ -547,3 +545,4 @@ if __name__ == '__main__':
 
 
 # python runner.py -exp projector -nt 2 -nc 11 -out data/9-22-2/{}.txt
+# python runner.py -exp greedy -nt 2 -nc 11 -out data/10-8-greedy/{}.txt

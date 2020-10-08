@@ -160,8 +160,8 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 		y_max = 100 if x_label == 'Average # of hops' else 70
 	
 	box_to_anchor = (-0.1, 1.04)
-	if 'Octopus-Random' in methods:
-		box_to_anchor = (-0.24, 1.04)
+	if 'Octopus-Random' in methods or 'Octopus' in methods:
+		box_to_anchor = (-0.15, 1.04)
 	
 	plt.ylim([y_min, y_max])
 	plt.legend(bbox_to_anchor=box_to_anchor, loc='lower left', ncol=2, fontsize=50)
@@ -526,6 +526,7 @@ def oneshot_revision_projector(path):
 
 		plot_line(print_table, methods_, filename='{}/{}-{}'.format(path, metric[i], 'vary_delta'), x_label='Reconfig. Delay (# of slots)', x_log=True, y_label=metric_[i], absolute_ub=True, yerr_table=yerr_table)
 
+
 def oneshot_revision_rotornet(path):
 	filename = '{}/reconfig_delta.txt'
 	data = runner.readDataFromFile(filename.format(path))
@@ -559,7 +560,7 @@ def oneshot_revision_greedy(path):
 	# methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
 	# methods_ = ['Eclipse-Based', 'Octopus',   'UB']
 	methods  = ['octopus-r', 'octopus-greedy']
-	methods_ = ['octopus-Random', 'Octopus-G']
+	methods_ = ['Octopus', 'Octopus-G']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -604,5 +605,8 @@ if __name__ == '__main__':
 	# path = 'data/9-22-slow'
 	# oneshot_revision_projector(path)
 
-	path = 'data/9-23-slow-rotor'
-	oneshot_revision_rotornet(path)
+	# path = 'data/9-23-slow-rotor'
+	# oneshot_revision_rotornet(path)
+
+	path = 'data/10-8-greedy'
+	oneshot_revision_greedy(path)

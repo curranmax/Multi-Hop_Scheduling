@@ -224,7 +224,7 @@ if __name__ == '__main__':
 			total_packets = sum(flow.size for _, flow in flows.iteritems())
 
 			if total_packets != total_packets_delivered + total_packets_not_delivered:
-				raise Exception('Not all packets accounted for: total_packets = ' + str(total_packets) + ', packets_delivered = ' + str(packets_delivered) + ', packets_not_delivered = ' + str(packets_not_delivered))
+				raise Exception('Not all packets accounted for: total_packets = ' + str(total_packets) + ', packets_delivered = ' + str(total_packets_delivered) + ', packets_not_delivered = ' + str(total_packets_not_delivered))
 
 			# Calculates the time slots used and not used. Includes the reconfiguration delta between splits.
 			total_time_slots_used = sum(rm.time_slots_used for rm in result_metrics)

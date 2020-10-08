@@ -12,7 +12,7 @@ from ortools.graph import pywrapgraph
 
 # MAX_WEIGHT_MATCHING_LIBRARY = 'networkx'
 # MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
-MAX_WEIGHT_MATCHING_LIBRARY = 'google'   
+MAX_WEIGHT_MATCHING_LIBRARY = 'google'
 # # the google library is 10 times faster than scipy, but somehow giving a worse performence, i.e. around 3% percent of dropping in terms of total objective value and packets_delivered
 
 EPS = 0.0
@@ -27,6 +27,13 @@ def setUseEps(use_eps):
 
 	return rv
 
+DEBUG = False
+add_matching_counter = 0
+fast_counter = 0
+full_counter = 0
+fast_list = []
+full_list = []
+
 # Holds a multi-hop schedule
 class Schedule:
 	def __init__(self):
@@ -36,6 +43,16 @@ class Schedule:
 		self.matching_weights = []
 
 	def addMatching(self, matching, duration, matching_weight):
+		if DEBUG:
+			global add_matching_counter, col_counter, full_counter, fast_counter, full_list, fast_list
+			add_matching_counter += 1
+			print('add_matching_counter = {}'.format(add_matching_counter))
+			print('time', time.clock())
+			full_list.append(full_counter)
+			fast_list.append(fast_counter)
+			full_counter = 0
+			fast_counter = 0
+
 		self.matchings.append(matching)
 		self.durations.append(duration)
 
@@ -470,7 +487,7 @@ def findRotornetMatching(num_nodes, iteration):
 #   matching_weight --> weight of the optimal matching
 def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_alternate_matching = None, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY, greedy = False, iteration = None):
 	# Creates the graph for the given alpha
-	graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, all_weights, max_weight_matching_library = max_weight_matching_library)
+	graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, all_weights, max_weight_matching_library = max_weight_matching_library)  # 8 millisec
 
 	if use_alternate_matching == 'random_stable':
 		# Random stable matching using Octopus weights
@@ -506,7 +523,7 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_alterna
 
 	elif greedy:
 		Profiler.start('greedy')
-		matching = greedy_match(graph)
+		matching = greedy_match(graph, subflows_by_next_hop, all_weights)  # 14 millisec
 		Profiler.end('greedy')
 		matching_weight = graph[matching[0], matching[1]].sum()
 	# Find the maximum weight matching of the graph using a 3rd party library
@@ -523,20 +540,58 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_alterna
 		matching_weight = graph[matching[0], matching[1]].sum()
 
 	elif max_weight_matching_library is 'google':
+		if DEBUG:
+			global fast_counter
+			fast_counter += 1
+			if fast_counter % 100 == 99:
+				print('fast', fast_counter)
+
 		assignment = pywrapgraph.LinearSumAssignment()
-		for i in range(len(graph)):
-			for j in range(len(graph)):
-				if graph[i][j]:
-					assignment.AddArcWithCost(i, j, -int(graph[i][j]))
-		assignment.Solve()
-		left = list(range(len(graph)))
-		right = [assignment.RightMate(i) for i in left]
-		matching = [left, right]
-		matching_weight = -assignment.OptimalCost()
+		for (i, j), subflows in subflows_by_next_hop.iteritems():
+			assignment.AddArcWithCost(i, j, -int(all_weights[(i, j)]))   # 12 millisec
+		
+		column_sum = np.sum(graph, axis=0)
+		arg = np.argwhere(column_sum == 0)
+		for col in arg:
+			col = col[0]
+			for i in range(len(graph)):
+				assignment.AddArcWithCost(i, col, 0)                     # 0.5 millisec
+
+		status = assignment.Solve()                                      # 2 millisec
+
+		if status == assignment.OPTIMAL:
+			left = list(range(len(graph)))
+			right = [assignment.RightMate(i) for i in left]
+			matching = [left, right]
+			matching_weight = -assignment.OptimalCost()
+		else:       # then add all the zero-length edges
+			if DEBUG:
+				global full_counter
+				full_counter += 1
+				if full_counter % 100 == 99:
+					print('full', full_counter)
+			for i in range(len(graph)):
+				for j in range(len(graph)):
+					if graph[i][j] == 0:
+						assignment.AddArcWithCost(i, j, 0)
+
+			status = assignment.Solve()
+			
+			if status == assignment.OPTIMAL:
+				left = list(range(len(graph)))
+				right = [assignment.RightMate(i) for i in left]
+				matching = [left, right]
+				matching_weight = -assignment.OptimalCost()
+			else:
+				np.save('error-{}.txt'.format(time.clock()), graph)
+				raise Exception('Error with Google library...')
+
 	else:
 		raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
+	matching = convertMatching(graph, matching, num_nodes, use_alternate_matching = use_alternate_matching, max_weight_matching_library = max_weight_matching_library)  # 0.5 millisec
+	# if DEBUG and fast_counter % 100 == 99:
+	# 	print('ending', time.clock())
 
-	matching = convertMatching(graph, matching, num_nodes, use_alternate_matching = use_alternate_matching, max_weight_matching_library = max_weight_matching_library)
 	return matching, matching_weight
 
 # Finds the matching and alpha that maximizes sum of weights of the matching / (alpha + reconfig_delta)
@@ -572,8 +627,8 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, se
 	if search_method == 'iterative':
 		# Tries all alpha values in alphas and finds the maximum weighted matching in each
 		for alpha in sorted(alphas):
+			global col_counter, fast_counter
 			matching, matching_weight = getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights_by_alpha[alpha], use_alternate_matching = use_alternate_matching, max_weight_matching_library = max_weight_matching_library, greedy = greedy, iteration = iteration)
-
 			# Track the graph that maximizes value(G) / (alpha + reconfig_delta)
 			this_objective_value = matching_weight / (alpha + reconfig_delta)
 			if best_objective_value is None or this_objective_value > best_objective_value:
@@ -1311,25 +1366,26 @@ def computeSchedule(num_nodes, flows, window_size, reconfig_delta, upper_bound =
 		rvs.append(packets_delivered_by_flow_id)
 
 	Profiler.end('computeSchedule')
+	if DEBUG:
+		global full_list, fast_list
+		print('full list', full_list)
+		print('fast list', fast_list)
 	return tuple(rvs)
 
 
 
-def cost2edges(cost):
+def init_edges(cost_matrix, subflows_by_next_hop, all_weights):
 	'''turn a cost matrix into a list of edges
 	Args:
 		cost -- cost matrix
 	'''
-	n = len(cost)
+	n = len(cost_matrix)
 	edges = []
-	for i in range(n):
-		for j in range(n):
-			c = int(cost[i][j])
-			if c != 0:
-				edges.append((i, j+n, c))
+	for (i, j), subflows in subflows_by_next_hop.iteritems():
+		edges.append((i, j+n, int(all_weights[(i, j)])))
 	return edges
 
-def greedy_match(cost_matrix):
+def greedy_match(cost_matrix, subflows_by_next_hop, all_weights):
 	'''greedy algorithm for maximum weight matching in a bipartite graph
 	Args:
 		cost_matrix -- np.array
@@ -1337,7 +1393,7 @@ def greedy_match(cost_matrix):
 		
 	'''
 	n = len(cost_matrix)
-	edges = cost2edges(cost_matrix)
+	edges = init_edges(cost_matrix, subflows_by_next_hop, all_weights)
 	max_weight = int(np.max(cost_matrix) + 1)
 	buckets = [[] for _ in range(max_weight)]
 	for edge in edges:
