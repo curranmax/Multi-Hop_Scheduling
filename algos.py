@@ -28,6 +28,7 @@ def setUseEps(use_eps):
 	return rv
 
 DEBUG = False
+good_iteration = True
 add_matching_counter = 0
 fast_counter = 0
 full_counter = 0
@@ -44,7 +45,7 @@ class Schedule:
 
 	def addMatching(self, matching, duration, matching_weight):
 		if DEBUG:
-			global add_matching_counter, col_counter, full_counter, fast_counter, full_list, fast_list
+			global add_matching_counter, full_counter, fast_counter, full_list, fast_list
 			add_matching_counter += 1
 			print('add_matching_counter = {}'.format(add_matching_counter))
 			print('time', time.clock())
@@ -52,10 +53,11 @@ class Schedule:
 			fast_list.append(fast_counter)
 			full_counter = 0
 			fast_counter = 0
+		global good_iteration
+		good_iteration = True
 
 		self.matchings.append(matching)
 		self.durations.append(duration)
-
 		self.matching_weights.append(matching_weight)
 
 	def numMatchings(self):
@@ -488,6 +490,7 @@ def findRotornetMatching(num_nodes, iteration):
 def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_alternate_matching = None, max_weight_matching_library = MAX_WEIGHT_MATCHING_LIBRARY, greedy = False, iteration = None):
 	# Creates the graph for the given alpha
 	graph = createBipartiteGraph(subflows_by_next_hop, alpha, num_nodes, all_weights, max_weight_matching_library = max_weight_matching_library)  # 8 millisec
+	global good_iteration
 
 	if use_alternate_matching == 'random_stable':
 		# Random stable matching using Octopus weights
@@ -540,24 +543,30 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_alterna
 		matching_weight = graph[matching[0], matching[1]].sum()
 
 	elif max_weight_matching_library is 'google':
-		if DEBUG:
-			global fast_counter
-			fast_counter += 1
-			if fast_counter % 100 == 99:
-				print('fast', fast_counter)
+		# if DEBUG:
+		# 	global fast_counter
+		# 	fast_counter += 1
+		# 	if fast_counter % 100 == 99:
+		# 		print('fast', fast_counter)
 
 		assignment = pywrapgraph.LinearSumAssignment()
 		for (i, j), subflows in subflows_by_next_hop.iteritems():
 			assignment.AddArcWithCost(i, j, -int(all_weights[(i, j)]))   # 12 millisec
 		
-		column_sum = np.sum(graph, axis=0)
-		arg = np.argwhere(column_sum == 0)
-		for col in arg:
-			col = col[0]
+		if good_iteration:
+			column_sum = np.sum(graph, axis=0)
+			arg = np.argwhere(column_sum == 0)
+			for col in arg:
+				col = col[0]
+				for i in range(len(graph)):
+					assignment.AddArcWithCost(i, col, 0)                 # 0.5 millisec
+			status = assignment.Solve()                                  # 2 millisec
+		else:
 			for i in range(len(graph)):
-				assignment.AddArcWithCost(i, col, 0)                     # 0.5 millisec
-
-		status = assignment.Solve()                                      # 2 millisec
+				for j in range(len(graph)):
+					if graph[i][j] == 0:
+						assignment.AddArcWithCost(i, j, 0)                # 500 millisec
+			status = assignment.Solve()
 
 		if status == assignment.OPTIMAL:
 			left = list(range(len(graph)))
@@ -565,16 +574,11 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_alterna
 			matching = [left, right]
 			matching_weight = -assignment.OptimalCost()
 		else:       # then add all the zero-length edges
-			if DEBUG:
-				global full_counter
-				full_counter += 1
-				if full_counter % 100 == 99:
-					print('full', full_counter)
+			good_iteration = False                                        # observation: when assignment.solve fails, the entire iteration will fail
 			for i in range(len(graph)):
 				for j in range(len(graph)):
 					if graph[i][j] == 0:
 						assignment.AddArcWithCost(i, j, 0)
-
 			status = assignment.Solve()
 			
 			if status == assignment.OPTIMAL:
@@ -588,11 +592,10 @@ def getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights, use_alterna
 
 	else:
 		raise Exception('Invalid max_weight_matching_library: ' + str(max_weight_matching_library))
+	
 	matching = convertMatching(graph, matching, num_nodes, use_alternate_matching = use_alternate_matching, max_weight_matching_library = max_weight_matching_library)  # 0.5 millisec
-	# if DEBUG and fast_counter % 100 == 99:
-	# 	print('ending', time.clock())
-
 	return matching, matching_weight
+
 
 # Finds the matching and alpha that maximizes sum of weights of the matching / (alpha + reconfig_delta)
 # Input:
@@ -627,7 +630,6 @@ def findBestMatching(subflows_by_next_hop, alphas, num_nodes, reconfig_delta, se
 	if search_method == 'iterative':
 		# Tries all alpha values in alphas and finds the maximum weighted matching in each
 		for alpha in sorted(alphas):
-			global col_counter, fast_counter
 			matching, matching_weight = getMatching(subflows_by_next_hop, alpha, num_nodes, all_weights_by_alpha[alpha], use_alternate_matching = use_alternate_matching, max_weight_matching_library = max_weight_matching_library, greedy = greedy, iteration = iteration)
 			# Track the graph that maximizes value(G) / (alpha + reconfig_delta)
 			this_objective_value = matching_weight / (alpha + reconfig_delta)

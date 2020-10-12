@@ -529,9 +529,12 @@ if __name__ == '__main__':
 				inputs.append(Input(reconfig_delta=rd, methods = methods, out_file = out_file.format('reconfig_delta'), key_value = 'reconfig_delta'))
 
 		elif experiment == GREEDY:
-			reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
-			methods = ['octopus-r', 'octopus-greedy']
+			# reconfig_deltas = [2, 5, 10, 20, 50, 100, 200, 500]
+			# methods = ['octopus-r', 'octopus-greedy']
 
+			reconfig_deltas = [2, 5, 10]
+			methods = ['octopus-r']
+			
 			for rd in reconfig_deltas:
 				inputs.append(Input(num_nodes=1000, reconfig_delta=rd, methods = methods, out_file = out_file.format('reconfig_delta'), key_value = 'reconfig_delta'))
 

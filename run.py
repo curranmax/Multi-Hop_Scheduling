@@ -105,7 +105,7 @@ if __name__ == '__main__':
 
 	# Data based on real measurements
 	if input_source in ['microsoft', 'sigmetrics', 'facebook']:
-		random_seed = int(time())
+		random_seed = int((time() - int(time())) * 1000000)
 		traffic = input_utils.Traffic(num_nodes = num_nodes, max_hop = max_route_length, window_size = window_size, num_routes = num_routes, min_route_length = min_route_length, random_seed = random_seed)
 
 	if input_source == 'sigmetrics':
