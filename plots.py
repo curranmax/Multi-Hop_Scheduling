@@ -162,6 +162,8 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 	box_to_anchor = (-0.1, 1.04)
 	if 'Octopus-Random' in methods or 'Octopus' in methods:
 		box_to_anchor = (-0.15, 1.04)
+	if 'Octopus-G' in methods or 'Rotornet' in methods:
+		box_to_anchor = (-0.04, 1.04)
 	
 	plt.ylim([y_min, y_max])
 	plt.legend(bbox_to_anchor=box_to_anchor, loc='lower left', ncol=2, fontsize=50)
