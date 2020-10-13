@@ -50,9 +50,9 @@ def y_fmt(tick_val, pos):
 # _MARKER = ['o',       'h',        's',         '^',             'D',       'P']
 
 METHOD  = ['Octopus-Random', 'Octopus', 'Octopus+', 'Octopus-e', 'Octopus-B', 'Eclipse-Based', 'UB',      'Absolute-UB', 'Projector', 'Octopus-G', 'Rotornet']
-_COLOR  = ['b',              'b',       'c',        'gray',      'k',         'g',             'orange',  'r',           'purple',    'cyan',      'magenta']
+_COLOR  = ['b',              'b',       'c',        'gray',      'k',         'g',             'orange',  'r',           'purple',    'cyan',      'forestgreen']
 _MARKER = ['o',              'o',       'o',        'o',         'o',         'o',             'o',       'o',           'o',         'o',         'o']
-_LINE   = ['-',              '-',       ':',        ':',         ':',         ':',             ':',       '-',           '-',         '-',         ':']
+_LINE   = ['-',              '-',       ':',        ':',         ':',         ':',             ':',       '-',           '-',         '-',         '-']
 COLOR   = dict(zip(METHOD, _COLOR))
 MARKER  = dict(zip(METHOD, _MARKER))
 LINE    = dict(zip(METHOD, _LINE))
@@ -88,12 +88,12 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 	if x_log:
 		X = np.log10((np.array(X, float)/DEFAULT_WINDOW_SIZE))
 	num = len(table[0]) - 1                         # number of methods
-	
+
 	Y = []
 	for i in range(1, num+1):
 		y = [row[i] for row in table]
 		Y.append(y)
-	
+
 	# core plotting
 	if yerr_table is None:
 		for i in range(0, num):
@@ -114,13 +114,13 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 
 	if absolute_ub and y_label == '% of Packets Deliverd':
 		method = 'Absolute-UB'
-		if x_label != 'Average # of hops' and ('Octopus-B' not in methods):
-			y = [66 for _ in X]	
+		if x_label != 'Average # of hops' and ('Octopus-B' not in methods) and ('Rotornet' not in methods) and ('Octopus-G' not in methods):
+			y = [66 for _ in X]
 			plt.plot(X, y, linestyle=LINE[method], marker=MARKER[method], color=COLOR[method], label=method)
 		if x_label == 'Average # of hops':
 			y = [100, 50, 33]
 			plt.plot(X, y, linestyle=LINE[method], marker=MARKER[method], color=COLOR[method], label=method)
-		
+
 	plt.xticks(X)
 	if x_log:       # log scale on x axis
 		plt.xticks(np.arange(-4, 0, 1), ['1', '10', '100', '1000'])
