@@ -11,8 +11,8 @@ import random
 from ortools.graph import pywrapgraph
 
 # MAX_WEIGHT_MATCHING_LIBRARY = 'networkx'
-# MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
-MAX_WEIGHT_MATCHING_LIBRARY = 'google'
+MAX_WEIGHT_MATCHING_LIBRARY = 'scipy'
+# MAX_WEIGHT_MATCHING_LIBRARY = 'google'
 # # the google library is 10 times faster than scipy, but somehow giving a worse performence, i.e. around 3% percent of dropping in terms of total objective value and packets_delivered
 
 EPS = 0.0
