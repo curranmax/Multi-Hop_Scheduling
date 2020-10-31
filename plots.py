@@ -49,7 +49,7 @@ def y_fmt(tick_val, pos):
 
 # _MARKER = ['o',       'h',        's',         '^',             'D',       'P']
 
-METHOD  = ['Octopus-Random', 'Octopus', 'Octopus+', 'Octopus-e', 'Octopus-B', 'Eclipse-Based', 'UB',      'Absolute-UB', 'Projector', 'Octopus-G', 'Rotornet']
+METHOD  = ['Octopus-Random', 'Octopus', 'Octopus+', 'Octopus-e', 'Octopus-B', 'Eclipse-Based', 'UB',      'Absolute-UB', 'Projector', 'Octopus-G', 'RotorNet']
 _COLOR  = ['b',              'b',       'c',        'gray',      'k',         'g',             'orange',  'r',           'purple',    'cyan',      'forestgreen']
 _MARKER = ['o',              'o',       'o',        'o',         'o',         'o',             'o',       'o',           'o',         'o',         'o']
 _LINE   = ['-',              '-',       ':',        ':',         ':',         ':',             ':',       '-',           '-',         '-',         '-']
@@ -114,7 +114,7 @@ def plot_line(table, methods, filename=None, x_label=None, x_log=False, y_label=
 
 	if absolute_ub and y_label == '% of Packets Deliverd':
 		method = 'Absolute-UB'
-		if x_label != 'Average # of hops' and ('Octopus-B' not in methods) and ('Rotornet' not in methods) and ('Octopus-G' not in methods):
+		if x_label != 'Average # of hops' and ('Octopus-B' not in methods) and ('RotorNet' not in methods) and ('Octopus-G' not in methods):
 			y = [66 for _ in X]
 			plt.plot(X, y, linestyle=LINE[method], marker=MARKER[method], color=COLOR[method], label=method)
 		if x_label == 'Average # of hops':
@@ -536,7 +536,7 @@ def oneshot_revision_rotornet(path):
 	# methods  = ['eclipse'      , 'octopus-r', 'upper-bound']
 	# methods_ = ['Eclipse-Based', 'Octopus',   'UB']
 	methods  = ['octopus-r', 'rotornet']
-	methods_ = ['Octopus',   'Rotornet']
+	methods_ = ['Octopus',   'RotorNet']
 	metric   = ['percent_packets_delivered', 'link_utilization']
 	metric_  = ['% of Packets Deliverd',     'Link Utilization (%)']
 
@@ -607,8 +607,8 @@ if __name__ == '__main__':
 	# path = 'data/9-22-slow'
 	# oneshot_revision_projector(path)
 
-	# path = 'data/9-23-slow-rotor'
-	# oneshot_revision_rotornet(path)
+	path = 'data/9-23-slow-rotor'
+	oneshot_revision_rotornet(path)
 
-	path = 'data/10-8-greedy'
-	oneshot_revision_greedy(path)
+	# path = 'data/10-8-greedy'
+	# oneshot_revision_greedy(path)
